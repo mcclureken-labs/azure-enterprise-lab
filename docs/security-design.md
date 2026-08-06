@@ -1,84 +1,134 @@
-# Enterprise Network Security Design
+# Enterprise Azure Lab - Security Design
 
 ## Overview
 
-This document defines the initial network security approach for the Azure Enterprise Lab.
+This document outlines the security architecture and design decisions implemented throughout the Enterprise Azure Lab.
 
-The security design follows least-privilege principles. Network access will be granted only when a documented technical or business requirement exists.
+---
 
-## Security Ownership
+# Security Principles
 
-Security policies and Network Security Groups are maintained separately from the shared connectivity resources.
+The environment is designed around the following principles:
 
-| Resource Group | Purpose |
-|---|---|
-| `rg-connectivity-prd-eus2` | Shared networking infrastructure |
-| `rg-security-prd-eus2` | Network security policies and related security resources |
+- Least privilege
+- Defense in depth
+- Network segmentation
+- Private administrative access
+- Enterprise resource organization
 
-The Network Security Group can reside in the security resource group while protecting a subnet in the connectivity resource group.
+---
 
-## Management Subnet
+# Network Security Groups (NSGs)
 
-### Protected Subnet
+## Hub Management
 
-- **Virtual Network:** `vnet-hub-prd-eus2`
-- **Subnet:** `snet-management-prd-eus2`
-- **Address Range:** `10.0.2.0/24`
-- **Network Security Group:** `nsg-management-prd-eus2`
+| Property | Value |
+|----------|-------|
+| Name | nsg-hub-management-prd-eus2 |
+| Resource Group | rg-security-prd-eus2 |
+| Associated Subnet | snet-hub-management-prd-eus2 |
 
-## Security Requirements
+### Purpose
 
-The management subnet will follow these requirements:
+Protects shared management infrastructure located within the Hub Virtual Network.
 
-1. Direct RDP access from the public internet is prohibited.
-2. Direct SSH access from the public internet is prohibited.
-3. Administrative access will eventually be provided through Azure Bastion.
-4. Custom access rules must use the narrowest practical source, destination, protocol, and port.
-5. Broad `Any` source or destination rules should be avoided.
-6. New rules must have a documented purpose.
-7. Unmatched inbound traffic remains denied.
-8. Outbound access will be reviewed and restricted as the environment develops.
+---
 
-## Current NSG Configuration
+## Corporate Management
 
-No custom security rules are currently required.
+| Property | Value |
+|----------|-------|
+| Name | nsg-corp-management-prd-eus2 |
+| Resource Group | rg-security-prd-eus2 |
+| Associated Subnet | snet-corp-management-prd-eus2 |
 
-The default NSG rules provide the initial baseline:
+### Purpose
 
-### Inbound
+Protects management servers deployed within the Corporate Virtual Network.
 
-- Allow traffic originating from the virtual network.
-- Allow Azure Load Balancer health probe traffic.
-- Deny all other unmatched inbound traffic.
+---
 
-### Outbound
+# Administrative Access
 
-- Allow traffic within the virtual network.
-- Allow outbound internet traffic.
-- Deny all other unmatched outbound traffic.
+Administrative access is provided exclusively through Azure Bastion.
 
-The outbound internet rule will be reviewed when management workloads are deployed.
+## Azure Bastion
 
-## Planned Administrative Access
+| Property | Value |
+|----------|-------|
+| Name | bas-hub-prd-eus2 |
+| Resource Group | rg-connectivity-prd-eus2 |
+| Public IP | pip-bastion-hub-prd-eus2 |
 
-Azure Bastion will eventually provide browser-based RDP and SSH access to management resources without assigning public IP addresses to the target virtual machines.
+### Benefits
 
-When Bastion is deployed, the management NSG will allow:
+- No Public IP addresses assigned to Windows servers
+- Browser-based RDP over HTTPS
+- Administrative traffic remains on Microsoft's private backbone
+- Reduced attack surface
 
-- TCP 3389 from `AzureBastionSubnet` to approved Windows management systems.
-- TCP 22 from `AzureBastionSubnet` to approved Linux management systems.
+---
 
-No direct public RDP or SSH rule will be created.
+# Virtual Network Segmentation
 
-## Future Security Controls
+## Hub Network
 
-Planned controls include:
+Shared infrastructure services.
+
+Examples:
 
 - Azure Bastion
-- Workload-specific Network Security Groups
-- Application Security Groups
-- Route tables
-- Centralized traffic inspection
-- Azure Policy
+- Azure Firewall (future)
+- VPN Gateway (future)
+- Shared Management
+
+---
+
+## Corporate Network
+
+Business workloads.
+
+Examples:
+
+- Active Directory
+- Management Servers
+- Internal Applications
+- Private Endpoints
+
+---
+
+# Current Security Decisions
+
+- Windows servers do not receive Public IP addresses.
+- Administrative access is centralized through Azure Bastion.
+- Network Security Groups are applied at the subnet level.
+- Hub and Corporate resources are separated using a Hub-and-Spoke architecture.
+- Management workloads are isolated from shared networking infrastructure.
+
+---
+
+# Future Security Enhancements
+
+The following services will be added later in the project:
+
+- Azure Firewall
+- NAT Gateway
 - Microsoft Defender for Cloud
-- Network monitoring and flow analysis
+- Azure Policy
+- Azure Key Vault
+- Just-In-Time VM Access
+- Network Watcher
+
+---
+
+# Lessons Learned
+
+## Private Subnets
+
+Private subnets provide improved security by removing default outbound Internet access.
+
+During this project, default outbound Internet access was temporarily enabled to simplify the Active Directory deployment.
+
+In a production environment, outbound connectivity would instead be provided through an Azure NAT Gateway or Azure Firewall.
+
+This temporary change will be revisited later as part of the networking architecture.
