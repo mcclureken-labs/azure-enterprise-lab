@@ -1,90 +1,63 @@
 # Server Inventory
 
-This document tracks all Windows Server virtual machines deployed within the Enterprise Azure Lab.
+This document provides a high-level inventory of server resources deployed within the Enterprise Azure Lab.
 
----
+## Active Servers
 
-# MGMT01
+| Server | Azure Resource | Role | Private IP | IP Allocation | Network Zone |
+|---|---|---|---|---|---|
+| DC01 | vm-dc01-corp-prd-eus2 | Active Directory Domain Services / DNS | 10.1.0.4 | Static | Identity |
+| MGMT01 | vm-mgmt01-corp-prd-eus2 | Management Server | 10.1.1.4 | Dynamic | Management |
 
-## Purpose
+## DC01
 
-Enterprise management server used to administer the Azure environment. This server provides a secure administrative workstation inside the Corporate VNet and is accessed exclusively through Azure Bastion.
+**Role:** Active Directory Domain Services and DNS
 
----
+**Operating System:** Windows Server 2025 Datacenter: Azure Edition
 
-## Azure Information
+**Purpose:**
+- Provides centralized identity services for the lab environment
+- Hosts Active Directory Domain Services
+- Provides internal DNS services
+- Supports authentication for domain-joined systems
 
-| Property | Value |
-|----------|-------|
-| Azure Resource Name | vm-mgmt01-prd-eus2 |
-| Resource Group | rg-corporate-prd-eus2 |
-| Region | East US 2 |
-| Virtual Network | vnet-corporate-prd-eus2 |
-| Subnet | snet-corp-management-prd-eus2 |
-| Private IP | 10.1.1.4 |
-| Public IP | None |
+**Network Configuration:**
+- Located within the dedicated Identity subnet
+- Static private IP addressing
+- No direct public IP assigned
 
----
+**Administrative Access:**
+- Administrative access is performed through Azure Bastion
+- Direct administrative exposure to the public Internet is not permitted
 
-## Operating System
+## MGMT01
 
-| Property | Value |
-|----------|-------|
-| Hostname | MGMT01 |
-| Operating System | Windows Server 2025 Datacenter Azure Edition |
-| Deployment | Azure Virtual Machine |
+**Role:** Management Server
 
----
+**Operating System:** Windows Server 2025 Datacenter: Azure Edition
 
-## Security
+**Purpose:**
+- Provides a dedicated system for infrastructure administration
+- Separates routine management activities from the Domain Controller
+- Will support remote administration tools for managing domain resources
 
-| Setting | Value |
-|---------|-------|
-| Management Method | Azure Bastion |
-| Network Security Group | nsg-corp-management-prd-eus2 |
-| Public RDP | Disabled |
-| Public SSH | Disabled |
+**Network Configuration:**
+- Located within the dedicated Management subnet
+- Dynamic private IP addressing
+- No direct public IP assigned
 
----
+**Administrative Access:**
+- Administrative access is performed through Azure Bastion
+- Direct administrative exposure to the public Internet is not permitted
 
-## Design Decisions
+## Design Considerations
 
-- Server deployed within the Corporate Management subnet.
-- No Public IP assigned.
-- Administrative access is provided exclusively through Azure Bastion.
-- Network security is enforced at the subnet level using an NSG.
-- Naming convention follows enterprise standards.
+Server roles are separated across dedicated network segments to support network segmentation and reduce unnecessary exposure.
 
----
+The Domain Controller uses static private addressing because other systems rely on it for Active Directory-integrated DNS and domain services.
 
-## Troubleshooting Notes
+The Management Server uses dynamic private addressing because other infrastructure does not depend on it being reachable at a fixed IP address.
 
-### Outbound Connectivity
+Domain services and management functions are hosted on separate virtual machines rather than combining administrative workloads with the Domain Controller.
 
-Issue:
-
-After changing the subnet from Private (no default outbound access) to allowing default outbound access, the VM still could not reach the Internet.
-
-Resolution:
-
-- Stopped (Deallocated) the VM.
-- Started the VM.
-- Verified outbound connectivity.
-
-Command used:
-
-```powershell
-Test-NetConnection www.microsoft.com -Port 443
-```
-
-Result:
-
-```
-TcpTestSucceeded : True
-```
-
-Lesson Learned:
-
-Changing the subnet's outbound access configuration required the VM to be deallocated before Azure applied the updated networking behavior.
-
----
+Azure Bastion provides administrative access without assigning public IP addresses directly to the server virtual machines.
