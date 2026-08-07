@@ -26,31 +26,32 @@ vm-mgmt01-corp-prd-eus2
 
 ## Resource Prefixes
 
-| Resource Type | Prefix |
-| --- | --- |
-| Resource Group | rg |
-| Virtual Network | vnet |
-| Subnet | snet |
-| Network Security Group | nsg |
-| Virtual Machine | vm |
-| Network Interface | nic |
-| Azure Bastion | bas |
-| Public IP | pip |
-| Route Table | rt |
-| Storage Account | st |
-| Key Vault | kv |
-| Recovery Services Vault | rsv |
-| Log Analytics Workspace | law |
-| Azure Firewall | afw |
+| Resource Type           | Prefix |
+| ----------------------- | ------ |
+| Resource Group          | rg     |
+| Virtual Network         | vnet   |
+| Subnet                  | snet   |
+| Network Security Group  | nsg    |
+| Virtual Machine         | vm     |
+| Network Interface       | nic    |
+| Azure Bastion           | bas    |
+| NAT Gateway             | nat    |
+| Public IP               | pip    |
+| Route Table             | rt     |
+| Storage Account         | st     |
+| Key Vault               | kv     |
+| Recovery Services Vault | rsv    |
+| Log Analytics Workspace | law    |
+| Azure Firewall          | afw    |
 
 ---
 
 ## Scope Codes
 
-| Scope | Code |
-| --- | --- |
-| Corporate | corp |
-| Hub / Shared Infrastructure | hub |
+| Scope                       | Code |
+| --------------------------- | ---- |
+| Corporate                   | corp |
+| Hub / Shared Infrastructure | hub  |
 
 Scope identifiers are used where they improve clarity and help distinguish resources with similar functions.
 
@@ -59,18 +60,18 @@ Scope identifiers are used where they improve clarity and help distinguish resou
 ## Environment Codes
 
 | Environment | Code |
-| --- | --- |
-| Production | prd |
-| Development | dev |
-| Test | tst |
+| ----------- | ---- |
+| Production  | prd  |
+| Development | dev  |
+| Test        | tst  |
 
 ---
 
 ## Region Codes
 
 | Azure Region | Code |
-| --- | --- |
-| East US 2 | eus2 |
+| ------------ | ---- |
+| East US 2    | eus2 |
 
 ---
 
@@ -114,11 +115,18 @@ Azure-reserved subnet names retain Microsoft's required naming where applicable.
 
 - `bas-hub-prd-eus2`
 
+### NAT Gateway
+
+- `nat-corp-prd-eus2`
+
+The Corporate scope identifies the workload network served by the NAT Gateway, while the resource itself is maintained with shared connectivity infrastructure.
+
 ### Public IP Resources
 
 - `pip-bastion-hub-prd-eus2`
+- `pip-nat-corp-prd-eus2`
 
-The resource name identifies the Azure Public IP resource and does not document the assigned public IP address.
+Public IP resource names identify the Azure resources and their intended functions. Assigned public IP addresses are intentionally not documented in the public repository.
 
 ---
 
@@ -126,10 +134,10 @@ The resource name identifies the Azure Public IP resource and does not document 
 
 Azure resource names and Windows hostnames serve different purposes.
 
-| Azure VM Resource | Windows Hostname |
-| --- | --- |
-| `vm-dc01-corp-prd-eus2` | `DC01` |
-| `vm-mgmt01-corp-prd-eus2` | `MGMT01` |
+| Azure VM Resource         | Windows Hostname |
+| ------------------------- | ---------------- |
+| `vm-dc01-corp-prd-eus2`   | `DC01`           |
+| `vm-mgmt01-corp-prd-eus2` | `MGMT01`         |
 
 Short Windows hostnames are used internally while Azure resource names contain additional context about scope, environment, and region.
 
@@ -141,7 +149,7 @@ Short Windows hostnames are used internally while Azure resource names contain a
 - Naming should remain consistent across Azure services.
 - Environment and region identifiers should be included where practical.
 - Scope identifiers should be used when they improve resource identification.
-- Shared infrastructure belongs to the Hub.
-- Workload-specific resources belong to their respective spokes.
+- Shared connectivity and security resources should be organized according to their architectural function.
+- Workload-specific resources should use scope identifiers that reflect the environments they support.
 - Azure-required resource names take precedence over the custom naming standard.
 - Naming conventions should remain scalable as additional services and workloads are introduced.
