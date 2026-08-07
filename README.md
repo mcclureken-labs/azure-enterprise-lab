@@ -16,6 +16,7 @@ The environment is being built incrementally alongside preparation for the Micro
 - Implement Hub-and-Spoke network architecture
 - Apply network segmentation and security controls
 - Provide private administrative access to infrastructure
+- Implement explicit outbound connectivity for private workloads
 - Deploy and administer Windows Server infrastructure
 - Implement Active Directory Domain Services and DNS
 - Develop identity and access management experience
@@ -31,35 +32,38 @@ The environment is being built incrementally alongside preparation for the Micro
 
 The environment currently uses a Hub-and-Spoke architecture consisting of a centralized Hub Virtual Network and a Corporate workload Virtual Network.
 
+Azure Bastion provides administrative connectivity to privately addressed server infrastructure, while Azure NAT Gateway provides explicit outbound Internet connectivity for private workload subnets.
+
 ```text
-                    Azure
-                      |
-              +----------------+
-              |    Hub VNet    |
-              +----------------+
-                      |
-              +----------------+
-              | Azure Bastion  |
-              +----------------+
-                      |
-                VNet Peering
-                      |
-              +----------------+
-              | Corporate VNet |
-              +----------------+
-                 |          |
-                 |          |
-          Identity        Management
-           Subnet           Subnet
-              |               |
-            DC01            MGMT01
-              |
-        +-----------+
-        | AD DS/DNS |
-        +-----------+
+                         Internet
+                            ^
+                            |
+                       NAT Gateway
+                            ^
+                            |
+                    Corporate VNet
+                     /           \
+                    /             \
+           Identity Subnet    Management Subnet
+                 |                  |
+               DC01               MGMT01
+            AD DS / DNS         Domain Joined
+                 |                  |
+                 +--------+---------+
+                          |
+                     VNet Peering
+                          |
+                       Hub VNet
+                          |
+                    Azure Bastion
+                          ^
+                          |
+                    Administrator
 ```
 
-Server virtual machines are not assigned direct public IP addresses. Administrative connectivity is provided through Azure Bastion.
+Server virtual machines are not assigned direct public IP addresses.
+
+Administrative connectivity is provided through Azure Bastion, while outbound Internet connectivity for the Identity and Management subnets is explicitly provided through Azure NAT Gateway.
 
 ---
 
@@ -75,34 +79,53 @@ Server virtual machines are not assigned direct public IP addresses. Administrat
 - Enterprise IP addressing plan
 - Network Security Groups
 - Segmented Identity and Management networks
+- Private workload subnets
+- Azure NAT Gateway
+- Dedicated public egress resource
+- Explicit outbound Internet connectivity
 
 ### Secure Administration
 
 - Azure Bastion
 - Private server administration
 - No direct public IP addresses assigned to server virtual machines
-- Dedicated management infrastructure
+- RDP not directly exposed to the public Internet
+- Dedicated domain management infrastructure
+- Named administrative identity
+- Separation of Domain Controller and routine management workloads
 
-### Identity
+### Identity and DNS
 
 - Windows Server 2025 Domain Controller
 - Active Directory Domain Services
 - Active Directory-integrated DNS
+- Active Directory forest and domain
+- Corporate VNet configured to use Active Directory DNS
 - Dedicated Identity subnet
 - Organizational Unit structure
 - Static private addressing for directory and DNS services
+- Domain-joined management server
+- Validated domain authentication
 
 ### Compute
 
 **DC01**
+
 - Active Directory Domain Services
-- DNS
+- Active Directory-integrated DNS
 - Windows Server 2025 Datacenter: Azure Edition
+- Static private addressing
+- Dedicated Identity subnet
 
 **MGMT01**
-- Dedicated management server
+
+- Domain-joined management server
+- Member of the `corp.mccluretech.com` domain
+- Computer object organized within the custom Servers OU
 - Windows Server 2025 Datacenter: Azure Edition
 - Located within a dedicated Management subnet
+- Uses Active Directory DNS hosted on DC01
+- Dedicated platform for infrastructure administration
 
 ---
 
@@ -118,6 +141,10 @@ Server virtual machines are not assigned direct public IP addresses. Administrat
 - [x] Hub-and-Spoke topology
 - [x] VNet peering
 - [x] Network Security Groups
+- [x] Private workload subnet configuration
+- [x] Azure NAT Gateway
+- [x] Explicit outbound connectivity
+- [x] Outbound connectivity validation
 
 ### Phase 2 - Secure Administration
 
@@ -125,34 +152,40 @@ Server virtual machines are not assigned direct public IP addresses. Administrat
 - [x] Private server connectivity
 - [x] Management subnet
 - [x] Management server deployment
+- [x] No direct public IP assignments to server virtual machines
+- [x] Named administrative identity
+- [x] Domain authentication from management infrastructure
 
 ### Phase 3 - Identity Infrastructure
 
 - [x] Windows Server Domain Controller deployment
 - [x] Active Directory Domain Services
-- [x] DNS
+- [x] Active Directory-integrated DNS
 - [x] Active Directory forest and domain
 - [x] Organizational Unit structure
-- [ ] Domain-join MGMT01
+- [x] Corporate VNet DNS configuration
+- [x] Domain-join MGMT01
+- [x] Move MGMT01 computer object to Servers OU
+- [x] Validate domain authentication
 - [ ] Configure remote administration tools
-- [ ] Create administrative and standard user accounts
+- [ ] Create standard user accounts
 - [ ] Create security groups
+- [ ] Create service accounts
 - [ ] Implement Group Policy
 
 ### Future Phases
 
 - [ ] Additional Windows Server workloads
 - [ ] Azure Firewall
-- [ ] Controlled outbound connectivity
 - [ ] Microsoft Defender for Cloud
 - [ ] Azure Policy
 - [ ] Azure Key Vault
 - [ ] Azure Monitor and centralized logging
 - [ ] Microsoft Entra ID integration
+- [ ] Additional identity security controls
 - [ ] PowerShell automation
 - [ ] Bicep
 - [ ] Terraform
-- [ ] Additional identity security controls
 
 ---
 
@@ -200,13 +233,16 @@ Technologies currently implemented or planned as part of the lab include:
 
 - Microsoft Azure
 - Azure Virtual Network
+- VNet Peering
 - Azure Bastion
+- Azure NAT Gateway
 - Network Security Groups
 - Azure Resource Manager
 - Windows Server 2025
 - Active Directory Domain Services
-- DNS
+- Active Directory-integrated DNS
 - Microsoft Entra ID
+- Azure Firewall
 - Azure Monitor
 - Microsoft Defender for Cloud
 - Azure Policy
@@ -220,9 +256,13 @@ Technologies currently implemented or planned as part of the lab include:
 
 ## Security Approach
 
-The environment is designed around defense in depth, network segmentation, private administrative access, and separation of infrastructure roles.
+The environment is designed around defense in depth, network segmentation, private administrative access, explicit outbound connectivity, and separation of infrastructure roles.
 
-Public project documentation focuses on architecture, implementation decisions, and technical learning while intentionally excluding credentials, secrets, authentication tokens, privileged account information, and externally reachable IP addresses.
+Server virtual machines remain privately addressed without direct public IP assignments. Azure Bastion provides administrative connectivity, while private workload subnets use Azure NAT Gateway for explicitly defined outbound Internet connectivity rather than relying on Azure default outbound access.
+
+NAT Gateway provides outbound address translation and predictable egress but is not treated as a replacement for network filtering or traffic inspection. Additional centralized security controls, including Azure Firewall, are planned as the environment matures.
+
+Public project documentation focuses on architecture, implementation decisions, and technical learning while intentionally excluding credentials, secrets, authentication tokens, privileged account details, externally reachable IP addresses, and unique Azure subscription or tenant identifiers.
 
 ---
 
@@ -236,9 +276,14 @@ Issues encountered during deployment are investigated and documented to demonstr
 - DNS validation
 - Effective route analysis
 - Network Security Group validation
-- Subnet configuration
+- Private subnet configuration
+- Outbound connectivity troubleshooting
+- NAT Gateway implementation and validation
 - Windows Server configuration
+- Active Directory and domain authentication
 - Azure networking behavior
+
+One documented scenario follows the progression from a private workload without Internet connectivity, through temporary use of default outbound access, to implementation and validation of an explicit Azure NAT Gateway egress architecture.
 
 The `docs/troubleshooting.md` document will continue to grow as additional services and infrastructure are implemented.
 
