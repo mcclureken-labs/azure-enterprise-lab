@@ -2,12 +2,16 @@
 
 This document provides a high-level inventory of server resources deployed within the Enterprise Azure Lab.
 
+---
+
 ## Active Servers
 
 | Server | Azure Resource | Role | Private IP | IP Allocation | Network Zone |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | DC01 | vm-dc01-corp-prd-eus2 | Active Directory Domain Services / DNS | 10.1.0.4 | Static | Identity |
 | MGMT01 | vm-mgmt01-corp-prd-eus2 | Management Server | 10.1.1.4 | Dynamic | Management |
+
+---
 
 ## DC01
 
@@ -30,6 +34,8 @@ This document provides a high-level inventory of server resources deployed withi
 - Administrative access is performed through Azure Bastion
 - Direct administrative exposure to the public Internet is not permitted
 
+---
+
 ## MGMT01
 
 **Role:** Management Server
@@ -49,6 +55,8 @@ This document provides a high-level inventory of server resources deployed withi
 **Administrative Access:**
 - Administrative access is performed through Azure Bastion
 - Direct administrative exposure to the public Internet is not permitted
+
+---
 
 ## Design Considerations
 
