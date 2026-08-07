@@ -4,6 +4,8 @@
 
 This document defines the naming standards used throughout the Enterprise Azure Lab to maintain consistency, readability, and scalability as the environment grows.
 
+---
+
 ## General Naming Format
 
 Azure resources follow a structured naming convention based on resource type, function, environment, and region.
@@ -19,6 +21,8 @@ Example:
 ```text
 vm-mgmt01-corp-prd-eus2
 ```
+
+---
 
 ## Resource Prefixes
 
@@ -39,6 +43,8 @@ vm-mgmt01-corp-prd-eus2
 | Log Analytics Workspace | law |
 | Azure Firewall | afw |
 
+---
+
 ## Scope Codes
 
 | Scope | Code |
@@ -48,6 +54,8 @@ vm-mgmt01-corp-prd-eus2
 
 Scope identifiers are used where they improve clarity and help distinguish resources with similar functions.
 
+---
+
 ## Environment Codes
 
 | Environment | Code |
@@ -56,11 +64,15 @@ Scope identifiers are used where they improve clarity and help distinguish resou
 | Development | dev |
 | Test | tst |
 
+---
+
 ## Region Codes
 
 | Azure Region | Code |
 | --- | --- |
 | East US 2 | eus2 |
+
+---
 
 ## Current Naming Examples
 
@@ -108,6 +120,8 @@ Azure-reserved subnet names retain Microsoft's required naming where applicable.
 
 The resource name identifies the Azure Public IP resource and does not document the assigned public IP address.
 
+---
+
 ## Server Hostnames
 
 Azure resource names and Windows hostnames serve different purposes.
@@ -118,6 +132,8 @@ Azure resource names and Windows hostnames serve different purposes.
 | `vm-mgmt01-corp-prd-eus2` | `MGMT01` |
 
 Short Windows hostnames are used internally while Azure resource names contain additional context about scope, environment, and region.
+
+---
 
 ## Naming Principles
 
