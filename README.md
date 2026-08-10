@@ -32,38 +32,29 @@ The environment is being built incrementally alongside preparation for the Micro
 
 The environment currently uses a Hub-and-Spoke architecture consisting of a centralized Hub Virtual Network and a Corporate workload Virtual Network.
 
-Azure Bastion provides administrative connectivity to privately addressed server infrastructure, while Azure NAT Gateway provides explicit outbound Internet connectivity for private workload subnets.
+Azure Bastion provides private administrative connectivity to server infrastructure without assigning direct public IP addresses to the virtual machines.
 
-```text
-                         Internet
-                            ^
-                            |
-                       NAT Gateway
-                            ^
-                            |
-                    Corporate VNet
-                     /           \
-                    /             \
-           Identity Subnet    Management Subnet
-                 |                  |
-               DC01               MGMT01
-            AD DS / DNS         Domain Joined
-                 |                  |
-                 +--------+---------+
-                          |
-                     VNet Peering
-                          |
-                       Hub VNet
-                          |
-                    Azure Bastion
-                          ^
-                          |
-                    Administrator
-```
+The Corporate Identity and Management subnets use Azure NAT Gateway for explicit outbound Internet connectivity. NAT Gateway performs Source Network Address Translation (SNAT) using a dedicated static Public IP resource.
 
-Server virtual machines are not assigned direct public IP addresses.
+Active Directory Domain Services and Active Directory-integrated DNS are hosted on DC01. The Corporate Virtual Network is configured to use DC01 as its custom DNS server, allowing domain-joined systems such as MGMT01 to locate and communicate with Active Directory services.
 
-Administrative connectivity is provided through Azure Bastion, while outbound Internet connectivity for the Identity and Management subnets is explicitly provided through Azure NAT Gateway.
+![Azure Enterprise Lab Topology](images/azure-enterprise-lab-topology.png)
+
+The editable source for the architecture diagram is maintained in [`diagrams/azure-enterprise-lab-topology.drawio`](diagrams/azure-enterprise-lab-topology.drawio).
+
+### Architecture Highlights
+
+- Hub-and-Spoke network topology
+- Bidirectional VNet peering
+- Dedicated Identity and Management subnets
+- Azure Bastion for private administrative access
+- No direct public IP addresses assigned to server virtual machines
+- Azure NAT Gateway for explicit outbound Internet connectivity
+- Dedicated static Public IP resource for NAT Gateway egress
+- Active Directory Domain Services and DNS hosted on DC01
+- Corporate VNet configured to use Active Directory DNS
+- Domain-joined MGMT01 management server
+- Reserved network segments for future Azure Firewall, gateway, Private Endpoint, and internal application workloads
 
 ---
 
@@ -81,7 +72,7 @@ Administrative connectivity is provided through Azure Bastion, while outbound In
 - Segmented Identity and Management networks
 - Private workload subnets
 - Azure NAT Gateway
-- Dedicated public egress resource
+- Dedicated static Public IP resource for outbound egress
 - Explicit outbound Internet connectivity
 
 ### Secure Administration
@@ -143,6 +134,7 @@ Administrative connectivity is provided through Azure Bastion, while outbound In
 - [x] Network Security Groups
 - [x] Private workload subnet configuration
 - [x] Azure NAT Gateway
+- [x] Dedicated static Public IP for NAT Gateway
 - [x] Explicit outbound connectivity
 - [x] Outbound connectivity validation
 
@@ -195,12 +187,12 @@ Detailed technical documentation is maintained in the `docs` directory.
 
 Current documentation includes:
 
-- Network Design
-- Security Design
-- Active Directory Design
-- Server Inventory
-- Naming Conventions
-- Troubleshooting
+- [Network Design](docs/network-design.md)
+- [Security Design](docs/security-design.md)
+- [Active Directory Design](docs/active-directory.md)
+- [Server Inventory](docs/server-inventory.md)
+- [Naming Conventions](docs/naming-convention.md)
+- [Troubleshooting](docs/troubleshooting.md)
 
 Documentation is updated as the environment evolves and includes architecture decisions, implementation details, troubleshooting scenarios, and lessons learned.
 
@@ -211,6 +203,8 @@ Documentation is updated as the environment evolves and includes architecture de
 ```text
 azure-enterprise-lab/
 │
+├── README.md
+│
 ├── docs/
 │   ├── active-directory.md
 │   ├── naming-convention.md
@@ -219,78 +213,14 @@ azure-enterprise-lab/
 │   ├── server-inventory.md
 │   └── troubleshooting.md
 │
+├── diagrams/
+│   ├── README.md
+│   └── azure-enterprise-lab-topology.drawio
+│
 ├── images/
+│   ├── README.md
+│   └── azure-enterprise-lab-topology.png
+│
 ├── powershell/
 ├── bicep/
 └── terraform/ (future)
-```
-
----
-
-## Technologies
-
-Technologies currently implemented or planned as part of the lab include:
-
-- Microsoft Azure
-- Azure Virtual Network
-- VNet Peering
-- Azure Bastion
-- Azure NAT Gateway
-- Network Security Groups
-- Azure Resource Manager
-- Windows Server 2025
-- Active Directory Domain Services
-- Active Directory-integrated DNS
-- Microsoft Entra ID
-- Azure Firewall
-- Azure Monitor
-- Microsoft Defender for Cloud
-- Azure Policy
-- Azure Key Vault
-- PowerShell
-- Azure CLI
-- Bicep
-- Terraform
-
----
-
-## Security Approach
-
-The environment is designed around defense in depth, network segmentation, private administrative access, explicit outbound connectivity, and separation of infrastructure roles.
-
-Server virtual machines remain privately addressed without direct public IP assignments. Azure Bastion provides administrative connectivity, while private workload subnets use Azure NAT Gateway for explicitly defined outbound Internet connectivity rather than relying on Azure default outbound access.
-
-NAT Gateway provides outbound address translation and predictable egress but is not treated as a replacement for network filtering or traffic inspection. Additional centralized security controls, including Azure Firewall, are planned as the environment matures.
-
-Public project documentation focuses on architecture, implementation decisions, and technical learning while intentionally excluding credentials, secrets, authentication tokens, privileged account details, externally reachable IP addresses, and unique Azure subscription or tenant identifiers.
-
----
-
-## Learning and Troubleshooting
-
-This project is intentionally built through hands-on implementation rather than architecture documentation alone.
-
-Issues encountered during deployment are investigated and documented to demonstrate the troubleshooting process, including:
-
-- Connectivity testing
-- DNS validation
-- Effective route analysis
-- Network Security Group validation
-- Private subnet configuration
-- Outbound connectivity troubleshooting
-- NAT Gateway implementation and validation
-- Windows Server configuration
-- Active Directory and domain authentication
-- Azure networking behavior
-
-One documented scenario follows the progression from a private workload without Internet connectivity, through temporary use of default outbound access, to implementation and validation of an explicit Azure NAT Gateway egress architecture.
-
-The `docs/troubleshooting.md` document will continue to grow as additional services and infrastructure are implemented.
-
----
-
-## Purpose
-
-This repository serves as both a technical portfolio and a record of my Azure learning journey.
-
-The objective is to demonstrate practical experience designing, deploying, securing, administering, troubleshooting, and documenting an enterprise-style Microsoft Azure environment while continuously expanding the environment as new Azure administration concepts are learned.
