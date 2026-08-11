@@ -2,6 +2,12 @@
 
 This document provides a high-level inventory of server resources deployed within the Enterprise Azure Lab.
 
+The current server placement and network relationships are shown in the architecture topology below.
+
+![Azure Enterprise Lab Topology](../images/azure-enterprise-lab-topology.png)
+
+The editable source for the architecture diagram is maintained in [`../diagrams/azure-enterprise-lab-topology.drawio`](../diagrams/azure-enterprise-lab-topology.drawio).
+
 ---
 
 ## Active Servers
@@ -25,11 +31,12 @@ This document provides a high-level inventory of server resources deployed withi
 - Hosts Active Directory Domain Services
 - Hosts Active Directory-integrated DNS
 - Provides DNS services for domain-joined systems
-- Supports Active Directory domain authentication and service discovery
+- Supports Active Directory authentication and service discovery
 
 **Network Configuration:**
 
-- Located within the dedicated Identity subnet
+- Located within `snet-identity-prd-eus2`
+- Subnet: `10.1.0.0/24`
 - Static private IP addressing
 - Private IP: `10.1.0.4`
 - No direct public IP assigned
@@ -40,7 +47,7 @@ This document provides a high-level inventory of server resources deployed withi
 
 - Administrative access is performed through Azure Bastion
 - Direct RDP exposure to the public Internet is not permitted
-- Routine administrative workloads are being separated from the Domain Controller through dedicated management infrastructure
+- Routine administrative workloads are separated from the Domain Controller through dedicated management infrastructure
 
 ---
 
@@ -69,12 +76,14 @@ This document provides a high-level inventory of server resources deployed withi
 
 **Network Configuration:**
 
-- Located within the dedicated Corporate Management subnet
+- Located within `snet-corp-management-prd-eus2`
+- Subnet: `10.1.1.0/24`
 - Dynamic private IP addressing
 - Current private IP: `10.1.1.4`
 - No direct public IP assigned
-- Management subnet configured as a private subnet
+- Corporate Management subnet configured as a private subnet
 - Explicit outbound Internet connectivity provided through Azure NAT Gateway
+- Subnet protected by `nsg-corp-management-prd-eus2`
 
 **Administrative Access:**
 
@@ -84,27 +93,17 @@ This document provides a high-level inventory of server resources deployed withi
 
 ---
 
-## Server Communication
+## Server Relationships
 
-Current server communication follows the domain architecture below:
+DC01 and MGMT01 are deployed within separate Corporate network segments to separate identity services from routine administrative activity.
 
-```text
-DC01
-├── Active Directory Domain Services
-├── Active Directory-integrated DNS
-└── Static Private Address
-          |
-          | Domain Services / DNS
-          v
-MGMT01
-├── Domain Joined
-├── Servers OU
-└── Dedicated Management Platform
-```
+DC01 provides Active Directory Domain Services and Active Directory-integrated DNS for the environment.
+
+MGMT01 is joined to the `corp.mccluretech.com` domain and uses DC01 at `10.1.0.4` for DNS resolution and Active Directory service discovery.
 
 Both servers remain privately addressed within the Corporate Virtual Network.
 
-Outbound Internet connectivity is provided through Azure NAT Gateway rather than relying on Azure default outbound access or direct public IP assignments.
+Administrative access is provided through Azure Bastion across VNet peering, while required outbound Internet connectivity is provided through Azure NAT Gateway rather than Azure default outbound access or direct public IP assignments.
 
 ---
 
