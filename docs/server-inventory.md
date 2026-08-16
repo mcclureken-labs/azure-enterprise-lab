@@ -64,12 +64,6 @@ Current services include:
 
 DC01 uses static private addressing because domain-connected systems depend on a consistent endpoint for Active Directory-integrated DNS and directory services.
 
-### Administrative Access
-
-Administrative access is performed through Azure Bastion when interactive connectivity is required.
-
-Routine Active Directory administration is primarily performed from MGMT01.
-
 ---
 
 ## MGMT01
@@ -128,12 +122,6 @@ Detailed authorization design is maintained in the [Active Directory Design](act
 - No direct public IP assigned
 - Network Security Group: `nsg-corp-management-prd-eus2`
 - Outbound Connectivity: Azure NAT Gateway
-
-### Administrative Access
-
-Administrative access is performed through Azure Bastion when interactive connectivity is required.
-
-MGMT01 serves as the primary administrative platform for the current Windows domain environment.
 
 ---
 
