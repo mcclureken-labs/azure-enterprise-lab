@@ -83,7 +83,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Active Directory Domain Services
 - Active Directory-integrated DNS
 - Global Catalog
-- Static private IP 10.1.0.4
+- Static private IP: 10.1.0.4
 - Dedicated Identity subnet
 - No direct public IP
 - Explicit outbound connectivity through Azure NAT Gateway
@@ -95,7 +95,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Windows Server 2025 Datacenter: Azure Edition
 - Member of the corp.mccluretech.com domain
 - Computer object located within the custom Servers OU
-- Private IP 10.1.1.4
+- Dynamic private IP: 10.1.1.4
 - Dedicated Management subnet
 - Uses Active Directory DNS hosted on DC01
 - Dedicated platform for Windows infrastructure administration
@@ -110,7 +110,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 
 - Ubuntu Server
 - Nginx web server
-- Private IP 10.1.3.4
+- Dynamic private IP: 10.1.3.4
 - Dedicated Internal Apps subnet
 - Internal Load Balancer backend
 - No direct public IP
@@ -122,7 +122,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 
 - Ubuntu Server
 - Nginx web server
-- Private IP 10.1.3.5
+- Dynamic private IP: 10.1.3.5
 - Dedicated Internal Apps subnet
 - Internal Load Balancer backend
 - No direct public IP
