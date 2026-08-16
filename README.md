@@ -38,7 +38,7 @@ The Hub provides shared connectivity and administrative infrastructure. Azure Ba
 
 The Corporate VNet separates Identity, Management, and Internal Application workloads into dedicated network segments.
 
-Azure NAT Gateway provides explicit outbound Internet connectivity for the active private Corporate workload subnets. NAT Gateway performs Source Network Address Translation (SNAT) using a dedicated static Public IP resource while allowing the server virtual machines to remain privately addressed.
+Azure NAT Gateway currently provides explicit outbound Internet connectivity for the active private Corporate workload subnets. NAT Gateway performs Source Network Address Translation (SNAT) using a dedicated static Public IP resource while allowing the server virtual machines to remain privately addressed.
 
 Active Directory Domain Services and Active Directory-integrated DNS are hosted on DC01. The Corporate VNet uses DC01 as its custom DNS server, allowing domain-connected systems such as MGMT01 to locate Active Directory services and resolve the internal namespace.
 
@@ -70,92 +70,6 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 - TCP/80 backend health monitoring
 - Validated application failover between backend servers
 - Reserved network segments for future Azure Firewall, gateway, and Private Endpoint services
-
----
-
-## Current Infrastructure
-
-### Networking
-
-- Hub Virtual Network
-- Corporate Virtual Network
-- Hub-and-Spoke topology
-- Bidirectional VNet peering
-- Enterprise IP addressing plan
-- Dedicated infrastructure and workload subnets
-- Network Security Groups
-- Segmented Identity, Management, and Internal Application networks
-- Private workload subnet configuration
-- Azure NAT Gateway
-- Dedicated static Public IP resource for outbound egress
-- Explicit outbound Internet connectivity
-- Internal Azure Load Balancer
-- Static private application frontend
-- Load Balancer backend pool
-- TCP/80 health probe
-- TCP/80 load-balancing rule
-
-### Secure Administration
-
-- Azure Bastion
-- Private Windows and Linux server administration
-- No direct public IP addresses assigned to server virtual machines
-- RDP not directly exposed to the public Internet
-- SSH not directly exposed to the public Internet
-- Dedicated domain management infrastructure
-- Named administrative identity
-- Separation of Domain Controller and routine management workloads
-- Active Directory administration from MGMT01
-- DNS administration from MGMT01
-- Group Policy administration from MGMT01
-
-### Identity and DNS
-
-- Windows Server 2025 Domain Controller
-- Active Directory Domain Services
-- Active Directory-integrated DNS
-- Active Directory forest and domain
-- Corporate VNet configured to use Active Directory DNS
-- Dedicated Identity subnet
-- Organizational Unit structure
-- Static private addressing for directory and DNS services
-- Domain-joined management server
-- Validated domain authentication
-- Active Directory security groups
-- AGDLP-style authorization
-- Dedicated server security baseline GPO
-- Group Policy linked to the Servers OU
-
-### Windows Administration and Access Control
-
-- Dedicated MGMT01 administrative server
-- Active Directory administrative tooling
-- DNS Manager
-- Group Policy Management
-- Active Directory PowerShell module
-- Domain-based administrative access
-- Global and Domain Local security groups
-- Group nesting for resource authorization
-- Windows file-share implementation
-- NTFS permission configuration
-- Inherited permission review and remediation
-- Group-based access rather than direct user permission assignment
-
-### Internal Application Tier
-
-- Dedicated Internal Apps subnet
-- WEB01 Ubuntu Server
-- WEB02 Ubuntu Server
-- Nginx web service
-- Internal Azure Load Balancer
-- Private frontend IP `10.1.3.10`
-- WEB01 and WEB02 backend pool membership
-- TCP/80 application traffic
-- TCP/80 health probing
-- Private application delivery
-- NAT Gateway outbound connectivity
-- Backend failure simulation
-- Validated application availability through the remaining healthy backend
 
 ---
 
@@ -264,34 +178,6 @@ The server baseline is maintained separately from the Default Domain Policy to p
 
 ---
 
-## Application Availability Validation
-
-The internal Nginx application tier was tested through the Azure Load Balancer rather than by directly targeting individual backend servers.
-
-An HTTP request to:
-
-```text
-http://10.1.3.10
-```
-
-successfully returned content from WEB01.
-
-WEB01 was then intentionally shut down to simulate backend failure.
-
-After the Load Balancer detected the unavailable backend, another request to the same frontend address successfully returned content from WEB02.
-
-This validated:
-
-- Internal Load Balancer frontend connectivity
-- Backend pool configuration
-- Nginx availability
-- TCP/80 health probing
-- Backend health detection
-- Application failover
-- Continued use of the same client-facing private endpoint during backend failure
-
----
-
 ## Current Progress
 
 ### Phase 1 - Enterprise Networking
@@ -389,18 +275,11 @@ The project documents troubleshooting and validation performed throughout implem
 
 Examples include:
 
-- Diagnosing failed outbound HTTPS connectivity despite successful DNS resolution
-- Reviewing effective routes and Network Security Group behavior
-- Identifying private subnet outbound-connectivity requirements
-- Implementing Azure NAT Gateway as the permanent explicit outbound solution
-- Validating NAT Gateway SNAT and public egress
-- Configuring Active Directory DNS dependencies for domain joining
-- Validating domain authentication
-- Reviewing NTFS authorization and identifying overly broad inherited permissions
-- Remediating inherited filesystem access without modifying root volume permissions
-- Testing internal Load Balancer connectivity
-- Intentionally shutting down an application backend
-- Validating continued service through the remaining healthy backend
+- Diagnosed private-subnet outbound connectivity and implemented Azure NAT Gateway as the current explicit egress solution
+- Validated NAT Gateway SNAT and outbound connectivity while maintaining private workload addressing
+- Configured and validated Active Directory DNS dependencies and domain integration
+- Identified and remediated overly broad inherited NTFS permissions
+- Validated internal application availability through backend failure testing
 
 Detailed investigation, remediation, and lessons learned are maintained in the [Troubleshooting](docs/troubleshooting.md) documentation.
 
@@ -458,32 +337,20 @@ azure-enterprise-lab/
 This project currently demonstrates hands-on experience with:
 
 - Microsoft Azure administration
-- Azure Virtual Networks and subnetting
-- Hub-and-Spoke architecture
-- VNet peering
-- Network Security Groups
+- Azure Virtual Networks, subnetting, VNet peering, and Hub-and-Spoke architecture
+- Network Security Groups and private workload networking
 - Azure Bastion
 - Azure NAT Gateway and SNAT
-- Azure Load Balancer
-- Private workload networking
-- Windows Server 2025
-- Active Directory Domain Services
-- Active Directory-integrated DNS
-- Organizational Unit design
-- Domain joining and authentication
-- Active Directory security groups
-- AGDLP-style authorization
-- Group Policy
-- Windows NTFS permissions
-- Windows infrastructure administration
-- Linux server administration
-- Nginx
-- Application health probing
-- Load-balancer failover testing
-- Network troubleshooting
-- Identity and permissions troubleshooting
-- Enterprise naming conventions
-- Technical architecture documentation
+- Azure Load Balancer, health probing, and failover validation
+- Windows Server 2025 administration
+- Active Directory Domain Services and Active Directory-integrated DNS
+- Organizational Unit design, domain joining, and authentication
+- Active Directory security groups and AGDLP-style authorization
+- Group Policy and Windows security configuration
+- Windows NTFS permissions and access-control troubleshooting
+- Linux server administration and Nginx
+- Network and infrastructure troubleshooting
+- Enterprise naming conventions and technical architecture documentation
 
 ---
 
