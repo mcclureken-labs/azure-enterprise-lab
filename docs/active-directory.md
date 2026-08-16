@@ -1,7 +1,7 @@
 # Active Directory Design
 
-**Version:** 1.3  
-**Last Updated:** August 15, 2026  
+**Version:** 1.4  
+**Last Updated:** August 16, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -18,7 +18,7 @@ The Active Directory infrastructure is integrated with the broader Azure network
 
 ![Azure Enterprise Lab Topology](../images/azure-enterprise-lab-topology.png)
 
-The editable source for the architecture diagram is maintained in [`../diagrams/azure-enterprise-lab-topology.drawio`](../diagrams/azure-enterprise-lab-topology.drawio).
+The editable source for the architecture diagram is maintained in [../diagrams/azure-enterprise-lab-topology.drawio](../diagrams/azure-enterprise-lab-topology.drawio).
 
 ---
 
@@ -47,7 +47,7 @@ The editable source for the architecture diagram is maintained in [`../diagrams/
 
 DC01 provides the core directory and DNS services for the `corp.mccluretech.com` domain.
 
-The server uses the static private IP address `10.1.0.4` to provide a consistent network endpoint for directory and DNS services.
+The server uses the static private IP address 10.1.0.4 to provide a consistent network endpoint for directory and DNS services.
 
 DC01 does not have a direct public IP address. Administrative connectivity is performed through the private Azure network architecture using Azure Bastion when required.
 
@@ -66,9 +66,9 @@ Current configuration includes:
 - Active Directory-integrated DNS
 - DNS hosted on DC01
 - Internal DNS namespace: `corp.mccluretech.com`
-- DC01 private IP: `10.1.0.4`
+- DC01 private IP: 10.1.0.4
 - Static private addressing for the DNS server
-- Corporate VNet configured to use `10.1.0.4` as its custom DNS server
+- Corporate VNet configured to use 10.1.0.4 as its custom DNS server
 - Active Directory-integrated forward lookup zones
 - Automatic DNS registration for domain-joined systems
 - Active Directory service discovery records
@@ -83,7 +83,7 @@ The `corp.mccluretech.com` forward lookup zone contains registered host records 
 | Host | FQDN | Private IP |
 | --- | --- | --- |
 | DC01 | dc01.corp.mccluretech.com | 10.1.0.4 |
-| MGMT01 | MGMT01.corp.mccluretech.com | 10.1.1.4 |
+| MGMT01 | mgmt01.corp.mccluretech.com | 10.1.1.4 |
 
 The DNS environment also contains the Active Directory-generated `_msdcs`, `_sites`, `_tcp`, and `_udp` structures used for domain controller and service discovery.
 
@@ -95,15 +95,17 @@ DNS and Active Directory service discovery were validated from the domain-joined
 
 Custom Organizational Units were created to provide logical separation between administrative identities, users, groups, servers, workstations, service accounts, and disabled objects.
 
-    corp.mccluretech.com
-    │
-    ├── Admins
-    ├── Disabled Objects
-    ├── Groups
-    ├── Servers
-    ├── Service Accounts
-    ├── User Accounts
-    └── Workstations
+```text
+corp.mccluretech.com
+│
+├── Admins
+├── Disabled Objects
+├── Groups
+├── Servers
+├── Service Accounts
+├── User Accounts
+└── Workstations
+```
 
 The OU structure provides logical administrative boundaries and creates a foundation for targeted Group Policy application, delegated administration, and future identity-management requirements.
 
@@ -163,19 +165,21 @@ Active Directory security groups are used to assign resource access through grou
 
 The initial access-control implementation uses an AGDLP-style group nesting model:
 
-    Accounts
-       │
-       ▼
-    Global Group
-    GG-IT-Users
-       │
-       ▼
-    Domain Local Group
-    DL-ITShare-RW
-       │
-       ▼
-    Resource Permission
-    ITShare - Modify
+```text
+Accounts
+   │
+   ▼
+Global Group
+GG-IT-Users
+   │
+   ▼
+Domain Local Group
+DL-ITShare-RW
+   │
+   ▼
+Resource Permission
+ITShare - Modify
+```
 
 ### Global Group
 
@@ -199,17 +203,19 @@ A test file resource named `ITShare` was created on MGMT01 to validate Active Di
 
 The final access model is:
 
-    User Account
-        │
-        ▼
-    GG-IT-Users
-        │
-        ▼
-    DL-ITShare-RW
-        │
-        ▼
-    ITShare
-    NTFS Modify
+```text
+User Account
+   │
+   ▼
+GG-IT-Users
+   │
+   ▼
+DL-ITShare-RW
+   │
+   ▼
+ITShare
+NTFS Modify
+```
 
 `DL-ITShare-RW` is explicitly assigned NTFS `Modify` permissions to the resource.
 
@@ -219,13 +225,9 @@ The final NTFS ACL retains:
 - `SYSTEM` - Full Control
 - Local Administrators - Full Control
 
-During validation, inherited permissions were reviewed and an overly broad `Authenticated Users` permission was identified.
+The resulting ACL provides standard resource access through the intended Active Directory security-group structure while preserving required SYSTEM and local administrative permissions.
 
-Inheritance was disabled on the ITShare folder, existing inherited permissions were converted to explicit entries, and unnecessary broad access entries were removed.
-
-This resulted in an intentional ACL where standard resource access is provided through the Active Directory security-group structure rather than broad authenticated-user permissions.
-
-Share-level and NTFS permissions were reviewed independently to understand how Windows evaluates access across both permission layers.
+Detailed permission troubleshooting and validation are maintained in the [Troubleshooting](troubleshooting.md) documentation.
 
 ---
 
@@ -252,14 +254,16 @@ Current configuration includes:
 
 The initial security baseline disables the local Guest account through:
 
-    Computer Configuration
-    └── Policies
-        └── Windows Settings
-            └── Security Settings
-                └── Local Policies
-                    └── Security Options
-                        └── Accounts: Guest account status
-                            └── Disabled
+```text
+Computer Configuration
+└── Policies
+    └── Windows Settings
+        └── Security Settings
+            └── Local Policies
+                └── Security Options
+                    └── Accounts: Guest account status
+                        └── Disabled
+```
 
 Creating a dedicated server baseline allows additional Windows Server security controls to be introduced incrementally without modifying the Default Domain Policy.
 
@@ -267,67 +271,20 @@ This also provides a scalable structure for applying different configuration bas
 
 ---
 
-## Administrative Design
-
-The Active Directory environment follows several administrative design principles:
-
-- Domain Controller and routine management workloads are separated
-- DC01 provides directory and DNS services
-- MGMT01 provides the primary Windows administrative platform
-- Administrative tools are installed on the dedicated management server
-- Servers are organized within a dedicated OU
-- User identities are separated from administrative and service-account objects
-- Group Policy is scoped through dedicated Organizational Units
-- Custom server policies are separated from default domain policies
-- Resource permissions are assigned through security groups rather than directly to users
-- Static addressing is used for infrastructure services that require consistent network endpoints
-- Server virtual machines do not require direct public IP addresses for administration
-
-These controls provide a foundation for expanding the environment with additional identity, authorization, security, and management capabilities.
-
----
-
 ## Validation
 
 The Active Directory implementation was validated through hands-on administrative and functional testing.
 
-Validation included:
+Major validation performed within the environment includes:
 
-- Successful Active Directory Domain Services deployment
-- Successful creation of the `corp.mccluretech.com` forest and domain
-- Active Directory-integrated DNS operation
-- Internal DNS host registration
-- Active Directory service discovery
-- Successful MGMT01 domain join
-- Successful domain authentication from MGMT01
-- Placement of MGMT01 within the custom `Servers` OU
-- Creation and organization of test user accounts
-- Global and Domain Local security group creation
-- Nested group membership validation
-- Group-based NTFS permission assignment
-- Review and remediation of inherited NTFS permissions
-- Group Policy creation and OU linkage
-- Server baseline security policy configuration
-- Centralized administration using management tools installed on MGMT01
+- **Directory services:** Validated deployment of Active Directory Domain Services and creation of the `corp.mccluretech.com` forest and domain.
+- **DNS and service discovery:** Validated Active Directory-integrated DNS, internal host registration, and directory service discovery.
+- **Domain integration and administration:** Validated MGMT01 domain join, domain authentication, placement within the `Servers` OU, and centralized administration through management tools installed on MGMT01.
+- **Directory organization:** Validated creation and organization of test user accounts, Global security groups, and Domain Local security groups.
+- **Resource authorization:** Validated AGDLP-style nested group membership and group-based NTFS access to the ITShare resource.
+- **Group Policy:** Validated creation and linkage of `GPO-Servers-Baseline` and implementation of the initial server security configuration.
 
----
-
-## Security Considerations
-
-The Active Directory design incorporates several security-focused decisions:
-
-- Domain Controller infrastructure is isolated from routine management workloads
-- DC01 does not require a direct public IP address
-- MGMT01 provides a separate administrative platform
-- Active Directory-integrated DNS supports directory-integrated name resolution
-- Dedicated Organizational Units provide policy and administrative boundaries
-- Custom Group Policy Objects are used instead of modifying default policies for workload-specific configuration
-- The local Guest account is disabled on systems governed by the server baseline GPO
-- Resource authorization uses security groups rather than direct user permissions
-- Overly broad inherited NTFS permissions were identified and removed during access-control validation
-- Administrative, service, user, server, workstation, group, and disabled objects are logically separated within Active Directory
-
-The environment remains a learning lab and will continue to be expanded with additional security controls.
+Detailed troubleshooting, remediation, and validation scenarios are maintained in the [Troubleshooting](troubleshooting.md) documentation.
 
 ---
 
