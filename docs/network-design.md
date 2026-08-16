@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Network Design
 
 **Version:** 1.3  
-**Last Updated:** August 15, 2026  
+**Last Updated:** August 16, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -30,7 +30,7 @@ The current network topology is shown below.
 
 ![Azure Enterprise Lab Topology](../images/azure-enterprise-lab-topology.png)
 
-The editable source for the architecture diagram is maintained in [`../diagrams/azure-enterprise-lab-topology.drawio`](../diagrams/azure-enterprise-lab-topology.drawio).
+The editable source for the architecture diagram is maintained in [../diagrams/azure-enterprise-lab-topology.drawio](../diagrams/azure-enterprise-lab-topology.drawio).
 
 ---
 
@@ -171,7 +171,7 @@ The assigned NAT Gateway public IP address itself is intentionally excluded from
 
 # DNS Architecture
 
-Active Directory-integrated DNS is hosted on DC01 at `10.1.0.4`.
+Active Directory-integrated DNS is hosted on DC01 at 10.1.0.4.
 
 | Property | Value |
 | --- | --- |
@@ -179,13 +179,13 @@ Active Directory-integrated DNS is hosted on DC01 at `10.1.0.4`.
 | Private IP | 10.1.0.4 |
 | AD DNS Domain | corp.mccluretech.com |
 
-The Corporate Virtual Network is configured with `10.1.0.4` as its custom DNS server.
+The Corporate Virtual Network is configured with 10.1.0.4 as its custom DNS server.
 
 This VNet-level configuration allows workloads using the VNet-provided DNS configuration to receive DC01 as their DNS server.
 
 MGMT01 therefore uses DC01 for internal DNS resolution and Active Directory service discovery.
 
-The DNS configuration supports resolution of the `corp.mccluretech.com` namespace and the Active Directory service records required for domain authentication and directory operations.
+The DNS configuration supports resolution of the corp.mccluretech.com namespace and the Active Directory service records required for domain authentication and directory operations.
 
 The DNS relationship is represented separately in the architecture topology because the Corporate VNet DNS configuration and the DNS service running on DC01 represent two distinct layers of the design:
 
@@ -263,7 +263,7 @@ An internal Azure Load Balancer provides a stable private frontend for the Nginx
 | Application Port | 80 |
 | Health Probe | TCP/80 |
 
-The Load Balancer frontend uses the static private IP address `10.1.3.10`.
+The Load Balancer frontend uses the static private IP address 10.1.3.10.
 
 Clients within the connected private network access the web service through this frontend rather than connecting directly to WEB01 or WEB02.
 
@@ -279,29 +279,15 @@ Because the Load Balancer is internal, it does not expose the Nginx application 
 
 # Load Balancer Validation
 
-The internal application tier was tested from MGMT01 using the Load Balancer frontend address.
+The internal application tier was validated from MGMT01 through the Load Balancer frontend at 10.1.3.10.
 
-An HTTP request to:
+An initial request to `http://10.1.3.10` successfully reached the Nginx application. WEB01 was then intentionally shut down to simulate a backend failure.
 
-`http://10.1.3.10`
+After the health mechanism detected that WEB01 was unavailable, another request to the same frontend was successfully served by WEB02.
 
-successfully returned the Nginx response hosted by WEB01.
+This validated private frontend connectivity, backend health monitoring, failure detection, and continued application availability through the remaining healthy backend while clients continued using the same frontend address.
 
-WEB01 was then intentionally shut down to simulate backend failure.
-
-After the health mechanism detected that WEB01 was unavailable, another request to the same Load Balancer frontend successfully returned the response hosted by WEB02.
-
-This validated:
-
-- Private connectivity to the Load Balancer frontend
-- Backend pool configuration
-- TCP/80 application connectivity
-- Health probe operation
-- Backend availability detection
-- Continued service through the remaining healthy backend
-- Use of a consistent frontend address during backend failure
-
-The test demonstrates basic internal application resiliency without exposing the backend servers directly to the Internet.
+Detailed troubleshooting and validation scenarios are maintained in the [Troubleshooting](troubleshooting.md) documentation.
 
 ---
 
@@ -329,119 +315,55 @@ It also provides a scalable structure for introducing additional workloads witho
 
 ---
 
-# Traffic Flow
-
-The environment currently uses several distinct traffic paths depending on the purpose of the connection.
-
-## Administrative Traffic
-
-Administrative access originates through Azure Bastion in the Hub VNet and reaches privately addressed Corporate workloads across VNet peering.
-
-Direct administrative ports are not exposed from the server virtual machines to the public Internet.
-
-## Active Directory and DNS Traffic
-
-Domain-connected systems use DC01 at `10.1.0.4` for internal DNS resolution and Active Directory service discovery.
-
-The Corporate VNet custom DNS configuration distributes this DNS server setting to workloads using VNet-provided DNS configuration.
-
-## Internal Application Traffic
-
-Internal clients access the Nginx application through the internal Load Balancer frontend at `10.1.3.10`.
-
-The Load Balancer distributes TCP/80 traffic to healthy WEB01 and WEB02 backend instances.
-
-## Outbound Internet Traffic
-
-Internet-bound connections originating from the Identity, Management, and Internal Apps subnets use Azure NAT Gateway for explicit outbound connectivity.
-
-The NAT Gateway performs SNAT using its dedicated static Public IP resource.
-
-These traffic paths intentionally separate administrative access, internal application delivery, directory services, and outbound Internet connectivity.
-
----
-
 # Design Decisions
 
 ## Hub-and-Spoke Architecture
 
 Shared connectivity and administrative services are separated from Corporate workload infrastructure.
 
-This provides a foundation that can scale to additional spokes while allowing shared services to remain centralized.
+This centralizes shared services within the Hub while maintaining a logical boundary between common infrastructure and workload resources. The design also provides a scalable foundation for adding additional spokes without duplicating shared connectivity services.
 
 ## Private Server Addressing
 
 DC01, MGMT01, WEB01, and WEB02 do not have direct public IP addresses.
 
-Administrative connectivity is provided through Azure Bastion when required, internal application delivery is provided through an internal Azure Load Balancer, and required outbound Internet connectivity is provided separately through Azure NAT Gateway.
+Keeping server workloads privately addressed reduces direct Internet exposure and allows administrative access, internal application delivery, and outbound connectivity to be provided through services designed specifically for those functions.
 
 ## Explicit Outbound Connectivity
 
 Default outbound access is disabled on the active private Corporate subnets.
 
-Azure NAT Gateway provides an explicitly configured outbound path and predictable public egress resource for Internet-bound connections originating from those subnets.
+Azure NAT Gateway provides an explicitly configured outbound path and predictable public egress resource for Internet-bound connections originating from those subnets. This keeps outbound connectivity intentional and independent from direct public addressing on individual workloads.
 
 ## Dedicated Identity Network
 
 The Domain Controller is placed within a dedicated Identity subnet rather than sharing a subnet with routine administrative or application workloads.
 
-This creates clearer infrastructure boundaries and provides a foundation for applying more specific security controls as the environment develops.
+Separating identity infrastructure creates a clearer security boundary around services that support authentication and DNS. It also provides a foundation for applying identity-specific network controls as the environment develops.
 
 ## Dedicated Management Network
 
 MGMT01 is placed within a dedicated Corporate Management subnet and serves as the administrative platform for managing domain resources.
 
-This separates routine administrative activity from the Domain Controller itself.
+This keeps routine administrative activity separate from the Domain Controller and provides a dedicated network segment for management systems and tooling as the environment grows.
 
 ## Dedicated Internal Application Network
 
 WEB01 and WEB02 are deployed within a dedicated Internal Apps subnet rather than sharing network space with identity or administrative infrastructure.
 
-This allows application-specific NSG rules, outbound connectivity, and load-balancing configuration to be managed independently from other workload types.
+This isolates the application tier from other workload types and allows application-specific NSG rules, outbound connectivity, and load-balancing configuration to be managed independently.
 
 ## Internal Load Balancing
 
 The Nginx workload is accessed through an internal Azure Load Balancer rather than by clients targeting individual backend servers.
 
-The Load Balancer provides a stable private frontend while allowing multiple backend systems to participate in the application tier.
-
-Health probing allows unavailable backend instances to be removed from active service while healthy instances continue receiving traffic.
-
-## Separation of Inbound and Outbound Connectivity
-
-The internal Load Balancer and NAT Gateway serve separate networking functions.
-
-The Load Balancer handles internal application delivery to WEB01 and WEB02.
-
-The NAT Gateway handles Internet-bound connections originating from the Internal Apps subnet.
-
-This separation avoids using public addressing for the application workload while still providing the outbound connectivity required by the servers.
+The Load Balancer provides a consistent private application endpoint while allowing multiple backend servers to participate in the application tier. Health probing also allows unavailable backends to be removed from active service while healthy systems continue receiving traffic.
 
 ## Reserved Network Capacity
 
 Dedicated address space remains reserved for Azure Firewall, gateway connectivity, and Private Endpoints.
 
-These network segments are represented in the topology but clearly identified as reserved where the associated workloads or services have not yet been deployed.
-
----
-
-# Design Goals
-
-- Centralized networking using a Hub-and-Spoke architecture
-- Secure administrative access through Azure Bastion
-- No direct public IP addresses assigned to server virtual machines
-- Explicit outbound Internet connectivity through Azure NAT Gateway
-- Private Corporate workload subnets with default outbound access disabled
-- Predictable public egress for Internet-bound workloads
-- Logical separation of infrastructure roles
-- Dedicated network segments for identity, management, and internal application systems
-- Internal application delivery through a private Azure Load Balancer
-- Backend health monitoring and application failover capability
-- Subnet-level traffic control using Network Security Groups
-- Active Directory-integrated DNS for Windows infrastructure
-- Consistent Azure resource naming
-- Reserved network capacity for future centralized security and connectivity services
-- Scalable network design for future services and workloads
+Reserving these network segments allows planned security, hybrid connectivity, and private service-access capabilities to be introduced without redesigning the existing address plan or disrupting currently deployed workloads.
 
 ---
 
