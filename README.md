@@ -2,11 +2,11 @@
 
 ## Overview
 
-This repository documents the design, deployment, administration, and continued development of a fictional enterprise environment built in Microsoft Azure.
+This repository documents the design, deployment, administration, troubleshooting, and continued development of a fictional enterprise environment built in Microsoft Azure.
 
-The project is designed to develop hands-on Azure infrastructure and systems administration skills through the implementation of enterprise-style networking, security, identity, compute, and management services.
+The project is designed to develop hands-on Azure infrastructure, networking, systems administration, identity, and security skills through the implementation of enterprise-style services and architectural patterns.
 
-The environment is being built incrementally alongside preparation for the Microsoft Azure Administrator (AZ-104) certification, with an emphasis on understanding not only how Azure services are configured, but why specific architectural decisions are made.
+The environment is being built incrementally alongside preparation for the Microsoft Azure Administrator (AZ-104) certification, with an emphasis on understanding not only how Azure services are configured, but why specific architectural decisions are made and how those decisions affect security, availability, and manageability.
 
 ---
 
@@ -20,6 +20,8 @@ The environment is being built incrementally alongside preparation for the Micro
 - Deploy and administer Windows Server infrastructure
 - Implement Active Directory Domain Services and DNS
 - Develop identity and access management experience
+- Implement Group Policy and group-based resource authorization
+- Deploy and validate an internal load-balanced application tier
 - Practice real-world infrastructure troubleshooting
 - Implement monitoring and security services
 - Develop PowerShell and infrastructure automation skills
@@ -30,13 +32,19 @@ The environment is being built incrementally alongside preparation for the Micro
 
 ## Current Architecture
 
-The environment currently uses a Hub-and-Spoke architecture consisting of a centralized Hub Virtual Network and a Corporate workload Virtual Network.
+The environment uses a Hub-and-Spoke architecture consisting of a centralized Hub Virtual Network and a Corporate workload Virtual Network.
 
-Azure Bastion provides private administrative connectivity to server infrastructure without assigning direct public IP addresses to the virtual machines.
+The Hub provides shared connectivity and administrative infrastructure. Azure Bastion provides private administrative connectivity to server workloads across VNet peering without assigning direct public IP addresses to the virtual machines.
 
-The Corporate Identity and Management subnets use Azure NAT Gateway for explicit outbound Internet connectivity. NAT Gateway performs Source Network Address Translation (SNAT) using a dedicated static Public IP resource.
+The Corporate VNet separates Identity, Management, and Internal Application workloads into dedicated network segments.
 
-Active Directory Domain Services and Active Directory-integrated DNS are hosted on DC01. The Corporate Virtual Network is configured to use DC01 as its custom DNS server, allowing domain-joined systems such as MGMT01 to locate and communicate with Active Directory services.
+Azure NAT Gateway provides explicit outbound Internet connectivity for the active private Corporate workload subnets. NAT Gateway performs Source Network Address Translation (SNAT) using a dedicated static Public IP resource while allowing the server virtual machines to remain privately addressed.
+
+Active Directory Domain Services and Active Directory-integrated DNS are hosted on DC01. The Corporate VNet uses DC01 as its custom DNS server, allowing domain-connected systems such as MGMT01 to locate Active Directory services and resolve the internal namespace.
+
+MGMT01 provides a dedicated domain-joined administrative platform for Active Directory, DNS, Group Policy, and Windows infrastructure administration.
+
+The Internal Apps subnet hosts two Ubuntu Nginx web servers, WEB01 and WEB02, behind an internal Azure Load Balancer. The Load Balancer provides a static private application frontend at `10.1.3.10`, distributes TCP/80 traffic across healthy backend systems, and uses health probing to detect backend availability.
 
 ![Azure Enterprise Lab Topology](images/azure-enterprise-lab-topology.png)
 
@@ -46,15 +54,22 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 
 - Hub-and-Spoke network topology
 - Bidirectional VNet peering
-- Dedicated Identity and Management subnets
+- Dedicated Identity, Management, and Internal Apps subnets
+- Subnet-level Network Security Groups
 - Azure Bastion for private administrative access
 - No direct public IP addresses assigned to server virtual machines
 - Azure NAT Gateway for explicit outbound Internet connectivity
 - Dedicated static Public IP resource for NAT Gateway egress
 - Active Directory Domain Services and DNS hosted on DC01
 - Corporate VNet configured to use Active Directory DNS
-- Domain-joined MGMT01 management server
-- Reserved network segments for future Azure Firewall, gateway, Private Endpoint, and internal application workloads
+- Domain-joined MGMT01 administrative server
+- Group Policy-based Windows Server configuration
+- AGDLP-style group-based resource authorization
+- Internal Azure Load Balancer
+- Redundant WEB01 and WEB02 Nginx backends
+- TCP/80 backend health monitoring
+- Validated application failover between backend servers
+- Reserved network segments for future Azure Firewall, gateway, and Private Endpoint services
 
 ---
 
@@ -66,24 +81,33 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 - Corporate Virtual Network
 - Hub-and-Spoke topology
 - Bidirectional VNet peering
-- Dedicated infrastructure subnets
 - Enterprise IP addressing plan
+- Dedicated infrastructure and workload subnets
 - Network Security Groups
-- Segmented Identity and Management networks
-- Private workload subnets
+- Segmented Identity, Management, and Internal Application networks
+- Private workload subnet configuration
 - Azure NAT Gateway
 - Dedicated static Public IP resource for outbound egress
 - Explicit outbound Internet connectivity
+- Internal Azure Load Balancer
+- Static private application frontend
+- Load Balancer backend pool
+- TCP/80 health probe
+- TCP/80 load-balancing rule
 
 ### Secure Administration
 
 - Azure Bastion
-- Private server administration
+- Private Windows and Linux server administration
 - No direct public IP addresses assigned to server virtual machines
 - RDP not directly exposed to the public Internet
+- SSH not directly exposed to the public Internet
 - Dedicated domain management infrastructure
 - Named administrative identity
 - Separation of Domain Controller and routine management workloads
+- Active Directory administration from MGMT01
+- DNS administration from MGMT01
+- Group Policy administration from MGMT01
 
 ### Identity and DNS
 
@@ -97,26 +121,174 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 - Static private addressing for directory and DNS services
 - Domain-joined management server
 - Validated domain authentication
+- Active Directory security groups
+- AGDLP-style authorization
+- Dedicated server security baseline GPO
+- Group Policy linked to the Servers OU
 
-### Compute
+### Windows Administration and Access Control
 
-**DC01**
+- Dedicated MGMT01 administrative server
+- Active Directory administrative tooling
+- DNS Manager
+- Group Policy Management
+- Active Directory PowerShell module
+- Domain-based administrative access
+- Global and Domain Local security groups
+- Group nesting for resource authorization
+- Windows file-share implementation
+- NTFS permission configuration
+- Inherited permission review and remediation
+- Group-based access rather than direct user permission assignment
 
+### Internal Application Tier
+
+- Dedicated Internal Apps subnet
+- WEB01 Ubuntu Server
+- WEB02 Ubuntu Server
+- Nginx web service
+- Internal Azure Load Balancer
+- Private frontend IP `10.1.3.10`
+- WEB01 and WEB02 backend pool membership
+- TCP/80 application traffic
+- TCP/80 health probing
+- Private application delivery
+- NAT Gateway outbound connectivity
+- Backend failure simulation
+- Validated application availability through the remaining healthy backend
+
+---
+
+## Server Infrastructure
+
+### DC01
+
+**Azure Resource:** `vm-dc01-corp-prd-eus2`
+
+- Windows Server 2025 Datacenter: Azure Edition
 - Active Directory Domain Services
 - Active Directory-integrated DNS
-- Windows Server 2025 Datacenter: Azure Edition
-- Static private addressing
+- Global Catalog
+- Static private IP `10.1.0.4`
 - Dedicated Identity subnet
+- No direct public IP
+- Explicit outbound connectivity through Azure NAT Gateway
 
-**MGMT01**
+### MGMT01
 
-- Domain-joined management server
-- Member of the `corp.mccluretech.com` domain
-- Computer object organized within the custom Servers OU
+**Azure Resource:** `vm-mgmt01-corp-prd-eus2`
+
 - Windows Server 2025 Datacenter: Azure Edition
-- Located within a dedicated Management subnet
+- Member of the `corp.mccluretech.com` domain
+- Computer object located within the custom Servers OU
+- Private IP `10.1.1.4`
+- Dedicated Management subnet
 - Uses Active Directory DNS hosted on DC01
-- Dedicated platform for infrastructure administration
+- Dedicated platform for Windows infrastructure administration
+- Active Directory, DNS, and Group Policy administrative tooling
+- Hosts the initial ITShare file resource
+- No direct public IP
+- Explicit outbound connectivity through Azure NAT Gateway
+
+### WEB01
+
+**Azure Resource:** `vm-web01-corp-prd-eus2`
+
+- Ubuntu Server
+- Nginx web server
+- Private IP `10.1.3.4`
+- Dedicated Internal Apps subnet
+- Internal Load Balancer backend
+- No direct public IP
+- Explicit outbound connectivity through Azure NAT Gateway
+
+### WEB02
+
+**Azure Resource:** `vm-web02-corp-prd-eus2`
+
+- Ubuntu Server
+- Nginx web server
+- Private IP `10.1.3.5`
+- Dedicated Internal Apps subnet
+- Internal Load Balancer backend
+- No direct public IP
+- Explicit outbound connectivity through Azure NAT Gateway
+
+---
+
+## Implemented Identity and Access Model
+
+The Windows environment uses Active Directory security groups to separate user-role membership from resource permissions.
+
+The initial ITShare implementation follows an AGDLP-style authorization model:
+
+```text
+User Account
+    ↓
+GG-IT-Users
+    ↓
+DL-ITShare-RW
+    ↓
+ITShare
+    ↓
+NTFS Modify
+```
+
+This allows users to be managed through role-based Global group membership while resource permissions are assigned to a Domain Local group.
+
+During validation, an inherited `Authenticated Users` Modify permission was identified on the ITShare folder.
+
+The inherited access was remediated at the resource level while preserving required SYSTEM and local administrative permissions, ensuring that normal user access aligned with the intended Active Directory group model.
+
+---
+
+## Implemented Group Policy
+
+A dedicated server baseline Group Policy Object is used for server-specific Windows security configuration.
+
+Current GPO:
+
+```text
+GPO-Servers-Baseline
+```
+
+The GPO is linked to the custom `Servers` OU.
+
+The initial baseline configures:
+
+```text
+Accounts: Guest account status → Disabled
+```
+
+The server baseline is maintained separately from the Default Domain Policy to provide a scalable location for future Windows Server security settings.
+
+---
+
+## Application Availability Validation
+
+The internal Nginx application tier was tested through the Azure Load Balancer rather than by directly targeting individual backend servers.
+
+An HTTP request to:
+
+```text
+http://10.1.3.10
+```
+
+successfully returned content from WEB01.
+
+WEB01 was then intentionally shut down to simulate backend failure.
+
+After the Load Balancer detected the unavailable backend, another request to the same frontend address successfully returned content from WEB02.
+
+This validated:
+
+- Internal Load Balancer frontend connectivity
+- Backend pool configuration
+- Nginx availability
+- TCP/80 health probing
+- Backend health detection
+- Application failover
+- Continued use of the same client-facing private endpoint during backend failure
 
 ---
 
@@ -128,7 +300,7 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 - [x] Enterprise IP addressing plan
 - [x] Hub Virtual Network
 - [x] Corporate Virtual Network
-- [x] Infrastructure subnets
+- [x] Infrastructure and workload subnets
 - [x] Hub-and-Spoke topology
 - [x] VNet peering
 - [x] Network Security Groups
@@ -147,8 +319,11 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 - [x] No direct public IP assignments to server virtual machines
 - [x] Named administrative identity
 - [x] Domain authentication from management infrastructure
+- [x] Remote Active Directory administration tooling
+- [x] DNS administration tooling
+- [x] Group Policy administration tooling
 
-### Phase 3 - Identity Infrastructure
+### Phase 3 - Identity and Windows Administration
 
 - [x] Windows Server Domain Controller deployment
 - [x] Active Directory Domain Services
@@ -159,25 +334,75 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 - [x] Domain-join MGMT01
 - [x] Move MGMT01 computer object to Servers OU
 - [x] Validate domain authentication
-- [ ] Configure remote administration tools
-- [ ] Create standard user accounts
-- [ ] Create security groups
-- [ ] Create service accounts
-- [ ] Implement Group Policy
+- [x] Configure remote administration tools
+- [x] Create standard test user accounts
+- [x] Create security groups
+- [x] Implement AGDLP-style group nesting
+- [x] Implement Group Policy
+- [x] Create server baseline GPO
+- [x] Implement Windows file-share authorization
+- [x] Configure NTFS permissions
+- [x] Review and remediate inherited permissions
+- [ ] Create dedicated service accounts
+- [ ] Expand Group Policy security baseline
+
+### Phase 4 - Internal Application Tier
+
+- [x] Internal Apps subnet
+- [x] Internal Apps Network Security Group
+- [x] WEB01 deployment
+- [x] WEB02 deployment
+- [x] Nginx installation and configuration
+- [x] Internal Azure Load Balancer
+- [x] Static private frontend configuration
+- [x] Backend pool configuration
+- [x] TCP/80 health probe
+- [x] TCP/80 load-balancing rule
+- [x] NAT Gateway association
+- [x] Internal application connectivity validation
+- [x] Backend failure simulation
+- [x] Application failover validation
 
 ### Future Phases
 
-- [ ] Additional Windows Server workloads
 - [ ] Azure Firewall
+- [ ] User Defined Routes
 - [ ] Microsoft Defender for Cloud
 - [ ] Azure Policy
 - [ ] Azure Key Vault
 - [ ] Azure Monitor and centralized logging
 - [ ] Microsoft Entra ID integration
+- [ ] Private Endpoints
 - [ ] Additional identity security controls
+- [ ] Additional Group Policy hardening
+- [ ] Additional Windows Server workloads
+- [ ] TLS for internal application workloads
 - [ ] PowerShell automation
 - [ ] Bicep
 - [ ] Terraform
+
+---
+
+## Troubleshooting and Validation
+
+The project documents troubleshooting and validation performed throughout implementation rather than only recording final configuration state.
+
+Examples include:
+
+- Diagnosing failed outbound HTTPS connectivity despite successful DNS resolution
+- Reviewing effective routes and Network Security Group behavior
+- Identifying private subnet outbound-connectivity requirements
+- Implementing Azure NAT Gateway as the permanent explicit outbound solution
+- Validating NAT Gateway SNAT and public egress
+- Configuring Active Directory DNS dependencies for domain joining
+- Validating domain authentication
+- Reviewing NTFS authorization and identifying overly broad inherited permissions
+- Remediating inherited filesystem access without modifying root volume permissions
+- Testing internal Load Balancer connectivity
+- Intentionally shutting down an application backend
+- Validating continued service through the remaining healthy backend
+
+Detailed investigation, remediation, and lessons learned are maintained in the [Troubleshooting](docs/troubleshooting.md) documentation.
 
 ---
 
@@ -194,7 +419,7 @@ Current documentation includes:
 - [Naming Conventions](docs/naming-convention.md)
 - [Troubleshooting](docs/troubleshooting.md)
 
-Documentation is updated as the environment evolves and includes architecture decisions, implementation details, troubleshooting scenarios, and lessons learned.
+The documentation covers architecture decisions, implementation details, security controls, troubleshooting scenarios, validation, and lessons learned as the environment evolves.
 
 ---
 
@@ -224,3 +449,48 @@ azure-enterprise-lab/
 ├── powershell/
 ├── bicep/
 └── terraform/ (future)
+```
+
+---
+
+## Key Skills Demonstrated
+
+This project currently demonstrates hands-on experience with:
+
+- Microsoft Azure administration
+- Azure Virtual Networks and subnetting
+- Hub-and-Spoke architecture
+- VNet peering
+- Network Security Groups
+- Azure Bastion
+- Azure NAT Gateway and SNAT
+- Azure Load Balancer
+- Private workload networking
+- Windows Server 2025
+- Active Directory Domain Services
+- Active Directory-integrated DNS
+- Organizational Unit design
+- Domain joining and authentication
+- Active Directory security groups
+- AGDLP-style authorization
+- Group Policy
+- Windows NTFS permissions
+- Windows infrastructure administration
+- Linux server administration
+- Nginx
+- Application health probing
+- Load-balancer failover testing
+- Network troubleshooting
+- Identity and permissions troubleshooting
+- Enterprise naming conventions
+- Technical architecture documentation
+
+---
+
+## Project Status
+
+**Active Development**
+
+The environment will continue to expand as additional Azure administration, security, monitoring, automation, and Infrastructure as Code concepts are implemented.
+
+Future work will build on the existing architecture rather than replacing it, allowing the repository to document the evolution of the environment from foundational networking and identity services into a broader enterprise-style Azure platform.
