@@ -44,11 +44,11 @@ Active Directory Domain Services and Active Directory-integrated DNS are hosted 
 
 MGMT01 provides a dedicated domain-joined administrative platform for Active Directory, DNS, Group Policy, and Windows infrastructure administration.
 
-The Internal Apps subnet hosts two Ubuntu Nginx web servers, WEB01 and WEB02, behind an internal Azure Load Balancer. The Load Balancer provides a static private application frontend at `10.1.3.10`, distributes TCP/80 traffic across healthy backend systems, and uses health probing to detect backend availability.
+The Internal Apps subnet hosts two Ubuntu Nginx web servers, WEB01 and WEB02, behind an internal Azure Load Balancer. The Load Balancer provides a static private application frontend at 10.1.3.10, distributes TCP/80 traffic across healthy backend systems, and uses health probing to detect backend availability.
 
 ![Azure Enterprise Lab Topology](images/azure-enterprise-lab-topology.png)
 
-The editable source for the architecture diagram is maintained in [`diagrams/azure-enterprise-lab-topology.drawio`](diagrams/azure-enterprise-lab-topology.drawio).
+The editable source for the architecture diagram is maintained in [diagrams/azure-enterprise-lab-topology.drawio](diagrams/azure-enterprise-lab-topology.drawio).
 
 ### Architecture Highlights
 
@@ -83,7 +83,7 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 - Active Directory Domain Services
 - Active Directory-integrated DNS
 - Global Catalog
-- Static private IP `10.1.0.4`
+- Static private IP 10.1.0.4
 - Dedicated Identity subnet
 - No direct public IP
 - Explicit outbound connectivity through Azure NAT Gateway
@@ -93,9 +93,9 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 **Azure Resource:** `vm-mgmt01-corp-prd-eus2`
 
 - Windows Server 2025 Datacenter: Azure Edition
-- Member of the `corp.mccluretech.com` domain
+- Member of the corp.mccluretech.com domain
 - Computer object located within the custom Servers OU
-- Private IP `10.1.1.4`
+- Private IP 10.1.1.4
 - Dedicated Management subnet
 - Uses Active Directory DNS hosted on DC01
 - Dedicated platform for Windows infrastructure administration
@@ -110,7 +110,7 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 
 - Ubuntu Server
 - Nginx web server
-- Private IP `10.1.3.4`
+- Private IP 10.1.3.4
 - Dedicated Internal Apps subnet
 - Internal Load Balancer backend
 - No direct public IP
@@ -122,7 +122,7 @@ The editable source for the architecture diagram is maintained in [`diagrams/azu
 
 - Ubuntu Server
 - Nginx web server
-- Private IP `10.1.3.5`
+- Private IP 10.1.3.5
 - Dedicated Internal Apps subnet
 - Internal Load Balancer backend
 - No direct public IP
@@ -150,10 +150,6 @@ NTFS Modify
 
 This allows users to be managed through role-based Global group membership while resource permissions are assigned to a Domain Local group.
 
-During validation, an inherited `Authenticated Users` Modify permission was identified on the ITShare folder.
-
-The inherited access was remediated at the resource level while preserving required SYSTEM and local administrative permissions, ensuring that normal user access aligned with the intended Active Directory group model.
-
 ---
 
 ## Implemented Group Policy
@@ -166,7 +162,7 @@ Current GPO:
 GPO-Servers-Baseline
 ```
 
-The GPO is linked to the custom `Servers` OU.
+The GPO is linked to the custom Servers OU.
 
 The initial baseline configures:
 
@@ -299,36 +295,6 @@ Current documentation includes:
 - [Troubleshooting](docs/troubleshooting.md)
 
 The documentation covers architecture decisions, implementation details, security controls, troubleshooting scenarios, validation, and lessons learned as the environment evolves.
-
----
-
-## Repository Structure
-
-```text
-azure-enterprise-lab/
-│
-├── README.md
-│
-├── docs/
-│   ├── active-directory.md
-│   ├── naming-convention.md
-│   ├── network-design.md
-│   ├── security-design.md
-│   ├── server-inventory.md
-│   └── troubleshooting.md
-│
-├── diagrams/
-│   ├── README.md
-│   └── azure-enterprise-lab-topology.drawio
-│
-├── images/
-│   ├── README.md
-│   └── azure-enterprise-lab-topology.png
-│
-├── powershell/
-├── bicep/
-└── terraform/ (future)
-```
 
 ---
 
