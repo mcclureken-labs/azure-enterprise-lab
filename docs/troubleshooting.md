@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Troubleshooting
 
-**Version:** 1.3  
-**Last Updated:** August 16, 2026  
+**Version:** 1.4  
+**Last Updated:** August 17, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -130,9 +130,9 @@ The temporary configuration restored the required connectivity but was not retai
 
 ---
 
-## Implemented Architectural Resolution
+## Initial Architectural Resolution - NAT Gateway
 
-The outbound architecture was subsequently updated to provide an explicitly configured egress path for the private Corporate workload subnets.
+The outbound architecture was initially updated to provide an explicitly configured egress path for the private Corporate workload subnets.
 
 Azure NAT Gateway was deployed with a dedicated static Public IP resource.
 
@@ -142,26 +142,66 @@ Azure NAT Gateway was deployed with a dedicated static Public IP resource.
 | Resource Group | `rg-connectivity-prd-eus2` |
 | Public IP Resource | `pip-nat-corp-prd-eus2` |
 
-The NAT Gateway is currently associated with:
+The NAT Gateway was associated with:
 
 - `snet-identity-prd-eus2`
 - `snet-corp-management-prd-eus2`
 - `snet-corporate-internal-apps-prd-eus2`
 
-Azure NAT Gateway performs Source Network Address Translation (SNAT) for outbound connections originating from the associated private subnets.
+Azure NAT Gateway performed Source Network Address Translation (SNAT) for outbound connections originating from the associated private subnets.
 
-This provides an explicit outbound Internet path without assigning direct public IP addresses to the server virtual machines.
+This provided an explicit outbound Internet path without assigning direct public IP addresses to the server virtual machines.
 
 After NAT Gateway was implemented, the workload subnets were returned to private subnet configuration with default outbound access disabled.
+
+The NAT Gateway architecture successfully provided explicit outbound connectivity and predictable source translation. It was later replaced as the environment evolved toward centralized outbound traffic filtering and policy enforcement.
+
+---
+
+## Architecture Evolution - Centralized Firewall Egress
+
+The outbound architecture was subsequently migrated from Azure NAT Gateway to Azure Firewall.
+
+The NAT Gateway and its associated Public IP resource were removed, and a User Defined Route was introduced to direct Internet-bound traffic from the Corporate workload subnets to Azure Firewall in the Hub Virtual Network.
+
+The configured default route is:
+
+```text
+0.0.0.0/0 → Virtual Appliance → 10.0.0.4
+```
+
+The route table is associated with:
+
+- `snet-identity-prd-eus2`
+- `snet-corp-management-prd-eus2`
+- `snet-corporate-internal-apps-prd-eus2`
+
+This provides a centralized outbound path through Azure Firewall while allowing the Corporate workloads to remain privately addressed with default outbound access disabled.
+
+Unlike the previous NAT Gateway architecture, Azure Firewall provides centralized policy enforcement that allows outbound traffic to be explicitly permitted or denied according to workload requirements.
 
 ---
 
 ## Validation
 
-Outbound HTTPS connectivity was tested again after the explicit egress configuration was implemented:
+The resulting Azure Firewall egress architecture was validated from MGMT01 after the User Defined Route and firewall policy were implemented.
+
+Internal network functionality was first validated to confirm that the routing changes had not disrupted Active Directory dependencies.
+
+Validation confirmed:
+
+- MGMT01 continued using DC01 at `10.1.0.4` for DNS
+- Internal DNS resolution remained functional
+- The Active Directory secure channel remained healthy
+- Corporate workload subnets remained configured as private subnets
+- Default outbound access remained disabled
+- Internet-bound traffic was directed toward Azure Firewall through the configured User Defined Route
+- Server virtual machines remained without direct public IP assignments
+
+Permitted Azure KMS activation traffic was tested from MGMT01:
 
 ```powershell
-Test-NetConnection www.microsoft.com -Port 443
+Test-NetConnection 20.118.99.224 -Port 1688
 ```
 
 Result:
@@ -170,17 +210,19 @@ Result:
 TcpTestSucceeded : True
 ```
 
-Final validation confirmed:
+An unmatched outbound web request was then tested:
 
-- DNS resolution remained functional
-- Outbound TCP/443 connectivity succeeded
-- Default outbound access remained disabled
-- Corporate workload subnets remained configured as private subnets
-- Internet-bound traffic used the NAT Gateway for outbound SNAT
-- The observed Internet-facing source address matched the Public IP resource associated with the NAT Gateway
-- Server virtual machines remained without direct public IP assignments
+```powershell
+curl.exe http://api.ipify.org
+```
 
-This confirmed that connectivity had been restored through the intended explicit outbound path rather than through Azure default outbound access.
+Azure Firewall denied the request because no applicable allow rule matched the traffic.
+
+![Azure Firewall Egress Policy Validation](../images/azure-firewall-egress-policy-validation.png)
+
+*Azure Firewall egress policy validation demonstrating successful permitted Azure KMS traffic over TCP/1688 and denial of unmatched outbound web traffic.*
+
+Together, these tests confirmed that the intended centralized outbound architecture was functioning and that firewall policy was capable of both permitting required traffic and denying traffic that was not explicitly allowed.
 
 ---
 
@@ -200,11 +242,11 @@ Successful Azure Bastion connectivity also did not imply that the workload itsel
 
 ### Validate the Resulting Architecture
 
-Restoring the original connection was not treated as sufficient validation.
+Restoring connectivity was not treated as sufficient validation.
 
-After explicit outbound connectivity was implemented, the original test was repeated with the workload subnet returned to private configuration and default outbound access disabled. The observed egress address was also validated against the NAT Gateway Public IP resource.
+After centralized outbound routing through Azure Firewall was implemented, both permitted and unmatched traffic were tested to confirm that the resulting architecture provided required connectivity while enforcing the intended firewall policy.
 
-This confirmed that the intended architecture was actually being used.
+This confirmed that the intended architecture was actually being used and that successful connectivity alone was not being treated as proof of correct security behavior.
 
 ---
 
@@ -372,6 +414,10 @@ The test confirmed:
 - Traffic was delivered to the remaining healthy backend
 - Application availability was maintained during the simulated backend failure
 
+![Internal Load Balancer Failover Test](../images/internal-load-balancer-failover-test.png)
+
+*Internal Load Balancer failover validation demonstrating continued application availability through the remaining healthy backend following the intentional shutdown of WEB01.*
+
 ---
 
 ## Lessons Learned
@@ -411,7 +457,7 @@ This approach helps isolate failures without introducing unrelated configuration
 
 # Summary
 
-Troubleshooting within the Azure Enterprise Lab has included outbound network connectivity, Windows resource authorization, and internal application availability.
+Troubleshooting within the Azure Enterprise Lab has included outbound network connectivity and firewall policy validation, Windows resource authorization, and internal application availability.
 
 These scenarios required troubleshooting across different infrastructure layers, including Azure networking, Windows permissions, Active Directory authorization, and application delivery.
 
