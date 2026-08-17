@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Security Design
 
-**Version:** 1.4  
-**Last Updated:** August 16, 2026  
+**Version:** 1.5  
+**Last Updated:** August 17, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -16,6 +16,7 @@ Security controls are implemented across multiple layers of the environment, inc
 
 - Azure network architecture
 - Network Security Groups
+- Azure Firewall
 - Private workload addressing
 - Administrative access
 - Active Directory Domain Services
@@ -51,7 +52,7 @@ Current security principles include:
 
 These principles are implemented through complementary controls across the network, administrative, identity, authorization, and workload layers.
 
-Network Security Groups provide subnet-level traffic filtering, while Azure Bastion provides centralized administrative connectivity to privately addressed workloads. Azure NAT Gateway provides explicit outbound connectivity without creating unsolicited inbound access.
+Network Security Groups provide subnet-level traffic filtering, while Azure Bastion provides centralized administrative connectivity to privately addressed workloads. Azure Firewall provides centralized outbound traffic control and policy enforcement for private Corporate workloads.
 
 Active Directory Domain Services provides centralized authentication and identity management. Group Policy provides centralized Windows security configuration, while Active Directory security groups and NTFS permissions provide resource-level authorization.
 
@@ -71,6 +72,7 @@ Current NSG assignments include:
 | --- | --- | --- |
 | `nsg-hub-management-prd-eus2` | `snet-hub-management-prd-eus2` | Protects shared Hub management infrastructure |
 | `nsg-corp-management-prd-eus2` | `snet-corp-management-prd-eus2` | Protects Corporate administrative systems |
+| `nsg-corporate-identity-prd-eus2` | `snet-identity-prd-eus2` | Protects Corporate identity infrastructure |
 | `nsg-corporate-internal-apps-prd-eus2` | `snet-corporate-internal-apps-prd-eus2` | Protects the internal application tier |
 
 The Internal Apps workload currently uses HTTP on TCP port 80.
@@ -78,6 +80,8 @@ The Internal Apps workload currently uses HTTP on TCP port 80.
 HTTPS on TCP port 443 is reserved for future TLS-enabled application traffic but is not currently implemented by the Nginx workload.
 
 Network Security Groups provide traffic filtering based on source, destination, protocol, and port. They are not treated as replacements for centralized firewalling, application-layer inspection, endpoint protection, or identity-based access controls.
+
+Additional east-west segmentation and more granular NSG rules are planned as future hardening improvements.
 
 ---
 
@@ -122,7 +126,7 @@ Separating identity, administrative, and application workloads reduces the need 
 
 ---
 
-# Outbound Connectivity and NAT Gateway Security Boundary
+# Outbound Connectivity and Azure Firewall Security Boundary
 
 The active Corporate workload subnets are configured as private subnets with default outbound access disabled.
 
@@ -134,33 +138,45 @@ Current private workload subnets include:
 
 Server workloads within these subnets remain privately addressed and do not rely on Azure default outbound access for Internet connectivity.
 
-Required outbound connectivity is provided through Azure NAT Gateway.
+Internet-bound traffic from these subnets is directed to Azure Firewall in the Hub Virtual Network using a User Defined Route.
 
 | Property | Value |
 | --- | --- |
-| Name | `nat-corp-prd-eus2` |
+| Firewall | `fw-hub-prd-eus2` |
 | Resource Group | `rg-connectivity-prd-eus2` |
-| Public IP Resource | `pip-nat-corp-prd-eus2` |
+| Firewall Tier | Basic |
+| Private IP | `10.0.0.4` |
+| Route Table | `rt-corporate-egress-prd-eus2` |
+| Route | `0.0.0.0/0` |
+| Next Hop Type | Virtual Appliance |
+| Next Hop Address | `10.0.0.4` |
 
-Azure NAT Gateway performs Source Network Address Translation (SNAT) for Internet-bound connections originating from the associated private subnets.
+The route table is associated with the active Corporate workload subnets, providing a centralized outbound path through Azure Firewall.
 
-This provides an explicitly configured and predictable outbound egress path while allowing DC01, MGMT01, WEB01, and WEB02 to remain privately addressed.
+Azure Firewall policy controls which outbound connections are permitted from those workloads. Traffic that does not match an applicable allow rule is denied by default.
 
-NAT Gateway does not provide unsolicited inbound Internet connectivity to these workloads.
+This allows DC01, MGMT01, WEB01, and WEB02 to remain privately addressed while outbound Internet connectivity is centrally controlled according to workload requirements.
 
 ### Security Boundary
 
-Azure NAT Gateway provides outbound connectivity and address translation but is not treated as a firewall or traffic-inspection service.
+Azure Firewall provides a centralized security boundary for Internet-bound Corporate workload traffic.
 
-It does not provide application-layer traffic inspection and does not replace controls such as:
+The firewall is used to:
+
+- Enforce explicit outbound connectivity requirements
+- Apply centralized network and application rules
+- Restrict unnecessary Internet access
+- Provide default-deny behavior for unmatched outbound traffic
+- Maintain private addressing on Corporate server workloads
+
+Azure Firewall operates alongside, rather than replacing, other security controls such as:
 
 - Network Security Groups
-- Azure Firewall
 - Host-based security controls
 - Identity-based authorization
 - Application security controls
 
-Future iterations of the environment may introduce Azure Firewall to provide centralized network filtering, inspection, and policy enforcement.
+This layered approach allows subnet-level controls and centralized outbound policy enforcement to serve different security functions within the environment.
 
 ---
 
@@ -179,8 +195,11 @@ Security characteristics of the design include:
 - Subnet-level Network Security Group
 - Private application delivery to the backend tier
 - Backend health monitoring
+- Outbound traffic routed through Azure Firewall
 
 Clients access the application through the Load Balancer frontend rather than directly targeting individual backend systems.
+
+Outbound connectivity from the Internal Apps subnet is centrally controlled through Azure Firewall policy.
 
 The Load Balancer is not treated as a firewall. Its role is application traffic distribution and backend availability monitoring rather than application-layer security inspection.
 
@@ -295,7 +314,9 @@ The environment currently implements security controls across network, administr
 - Private server addressing with no direct public IP assignments
 - Centralized administrative access through Azure Bastion
 - Functional network segmentation with subnet-level Network Security Groups
-- Private Corporate subnets with default outbound access disabled and explicit NAT Gateway egress
+- Private Corporate subnets with default outbound access disabled and centralized Azure Firewall egress
+- User Defined Routes directing Internet-bound Corporate workload traffic through Azure Firewall
+- Explicit firewall policy with default-deny behavior for unmatched outbound traffic
 - Separation of Domain Controller and routine administrative workloads
 - Centralized authentication and DNS through Active Directory Domain Services
 - Organizational Unit structure and Group Policy-based server security configuration
@@ -316,7 +337,7 @@ Major validation performed within the environment includes:
 - **Administrative access:** Validated private administrative connectivity to Windows and Linux workloads without direct public IP assignments.
 - **Identity and policy:** Validated Active Directory domain authentication, DNS resolution and service discovery, Organizational Unit placement, and Group Policy configuration.
 - **Resource authorization:** Validated Active Directory security-group nesting and NTFS access through the intended Domain Local security group.
-- **Outbound connectivity:** Validated explicit Internet egress from private workload subnets through Azure NAT Gateway.
+- **Outbound connectivity:** Validated centralized outbound routing through Azure Firewall, including successful permitted Azure KMS traffic over TCP port 1688 and denial of unmatched outbound web traffic.
 - **Internal application delivery:** Validated private Load Balancer frontend connectivity, backend health monitoring, traffic delivery to Nginx systems, and continued application availability following intentional backend failure.
 
 Detailed troubleshooting, remediation, and validation scenarios are maintained in the [Troubleshooting](troubleshooting.md) documentation.
@@ -327,7 +348,6 @@ Detailed troubleshooting, remediation, and validation scenarios are maintained i
 
 Planned security improvements include:
 
-- Azure Firewall
 - Microsoft Defender for Cloud
 - Azure Policy
 - Azure Key Vault
@@ -352,6 +372,6 @@ These services and controls are planned enhancements and should not be interpret
 
 The Azure Enterprise Lab applies layered security controls across networking, administrative access, identity, authorization, Windows policy, and internal application delivery.
 
-The current design emphasizes private workload addressing, functional network segmentation, centralized administrative access, explicit outbound connectivity, centralized identity and policy management, and group-based resource authorization. Implemented controls are functionally validated rather than treated as effective based solely on configuration state.
+The current design emphasizes private workload addressing, functional network segmentation, centralized administrative access, controlled outbound connectivity through Azure Firewall, centralized identity and policy management, and group-based resource authorization. Implemented controls are functionally validated rather than treated as effective based solely on configuration state.
 
-The environment provides a foundation for introducing additional controls such as Azure Firewall, Microsoft Defender for Cloud, Azure Policy, Key Vault, centralized monitoring, expanded Windows hardening, and additional identity-security capabilities as the project develops.
+The environment provides a foundation for introducing additional controls such as Microsoft Defender for Cloud, Azure Policy, Key Vault, centralized monitoring, expanded Windows hardening, and additional identity-security capabilities as the project develops.
