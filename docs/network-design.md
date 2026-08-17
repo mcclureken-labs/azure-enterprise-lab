@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Network Design
 
-**Version:** 1.3  
-**Last Updated:** August 16, 2026  
+**Version:** 1.4  
+**Last Updated:** August 17, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -10,21 +10,22 @@
 
 The Azure Enterprise Lab uses a Hub-and-Spoke network architecture to separate shared connectivity and administrative infrastructure from Corporate workload resources.
 
-The Hub Virtual Network provides centralized connectivity and administrative services, while the Corporate Virtual Network contains Identity, Management, and Internal Application workloads.
+The Hub Virtual Network provides centralized connectivity, security, and administrative services, while the Corporate Virtual Network contains Identity, Management, and Internal Application workloads.
 
 The current network design incorporates:
 
 - Hub-and-Spoke network segmentation
 - Bidirectional VNet peering
 - Azure Bastion for private administrative connectivity
-- Azure NAT Gateway for explicit outbound Internet access
+- Azure Firewall for centralized outbound traffic control
+- User Defined Routes for centralized outbound routing
 - Active Directory-integrated DNS
 - Subnet-level Network Security Groups
 - Dedicated Identity and Management networks
 - A dedicated Internal Apps subnet
 - Two redundant Nginx web servers
 - An internal Azure Load Balancer
-- Reserved address space for future Azure Firewall, gateway, and Private Endpoint services
+- Reserved address space for future gateway and Private Endpoint services
 
 The current network topology is shown below.
 
@@ -46,14 +47,15 @@ The editable source for the architecture diagram is maintained in [../diagrams/a
 
 | Subnet | Address Space | Purpose | Status |
 | --- | --- | --- | --- |
-| AzureFirewallSubnet | 10.0.0.0/26 | Reserved for Azure Firewall | Reserved |
+| AzureFirewallSubnet | 10.0.0.0/26 | Azure Firewall data traffic | Active |
 | GatewaySubnet | 10.0.0.64/27 | Reserved for VPN / ExpressRoute Gateway | Reserved |
 | AzureBastionSubnet | 10.0.0.128/26 | Azure Bastion | Active |
+| AzureFirewallManagementSubnet | 10.0.0.192/26 | Azure Firewall Basic management traffic | Active |
 | snet-hub-management-prd-eus2 | 10.0.2.0/24 | Shared management infrastructure | Active |
 
-The Azure Firewall and Gateway subnets are reserved for future infrastructure and do not currently host those services.
+The Azure Firewall subnets provide dedicated network segments for Azure Firewall data and management traffic.
 
-Reserving these network segments in advance provides space for future centralized security and hybrid-connectivity services without requiring the existing address plan to be redesigned.
+The Gateway subnet remains reserved for future hybrid-connectivity infrastructure.
 
 ---
 
@@ -133,15 +135,27 @@ Because Azure Bastion is a billable lab resource, it can be deployed or removed 
 
 # Outbound Internet Connectivity
 
-Explicit outbound Internet connectivity for private Corporate workloads is provided through Azure NAT Gateway.
+Explicit outbound Internet connectivity for private Corporate workloads is routed through Azure Firewall in the Hub Virtual Network.
 
 | Property | Value |
 | --- | --- |
-| Name | nat-corp-prd-eus2 |
+| Name | fw-hub-prd-eus2 |
 | Resource Group | rg-connectivity-prd-eus2 |
-| Public IP Resource | pip-nat-corp-prd-eus2 |
+| Private IP | 10.0.0.4 |
+| Firewall Tier | Basic |
+| Data Subnet | AzureFirewallSubnet |
+| Management Subnet | AzureFirewallManagementSubnet |
 
-The NAT Gateway is associated with:
+A User Defined Route is used to direct Internet-bound traffic from the active Corporate workload subnets to Azure Firewall.
+
+| Property | Value |
+| --- | --- |
+| Route Table | rt-corporate-egress-prd-eus2 |
+| Address Prefix | 0.0.0.0/0 |
+| Next Hop Type | Virtual Appliance |
+| Next Hop Address | 10.0.0.4 |
+
+The route table is associated with:
 
 - `snet-identity-prd-eus2`
 - `snet-corp-management-prd-eus2`
@@ -149,23 +163,19 @@ The NAT Gateway is associated with:
 
 These subnets are configured as private subnets with default outbound access disabled.
 
-Internet-bound connections originating from workloads in these subnets use the NAT Gateway as their explicit outbound path.
+Internet-bound connections originating from workloads in these subnets are therefore directed to Azure Firewall for centralized policy enforcement.
 
-Azure NAT Gateway performs Source Network Address Translation (SNAT) using the dedicated static Public IP resource `pip-nat-corp-prd-eus2`.
-
-This allows DC01, MGMT01, WEB01, and WEB02 to initiate outbound Internet connections when required while remaining privately addressed and without receiving direct public IP assignments.
-
-The NAT Gateway does not provide unsolicited inbound Internet connectivity to these virtual machines.
+Azure Firewall controls permitted outbound connectivity while the server workloads remain privately addressed and without direct public IP assignments.
 
 ## Outbound Connectivity Validation
 
-Outbound connectivity was validated from private workloads after the NAT Gateway and subnet associations were configured.
+Outbound routing and firewall policy enforcement were validated from MGMT01 after the User Defined Route and Azure Firewall configuration were implemented.
 
-Testing included successful Internet connectivity required for package and operating-system updates while the workloads remained privately addressed.
+Testing confirmed that explicitly permitted Azure KMS activation traffic over TCP port 1688 successfully traversed the configured outbound path.
 
-The NAT Gateway was also used by the Internal Apps subnet to provide WEB01 and WEB02 with explicit outbound connectivity required for Linux package installation and Nginx deployment.
+Unmatched outbound web traffic was also tested and denied by Azure Firewall because no firewall rule matched the request.
 
-The assigned NAT Gateway public IP address itself is intentionally excluded from repository documentation.
+This validated both permitted outbound connectivity and default-deny behavior for traffic not explicitly allowed by firewall policy.
 
 ---
 
@@ -204,6 +214,7 @@ Current NSG assignments include:
 | --- | --- |
 | nsg-hub-management-prd-eus2 | snet-hub-management-prd-eus2 |
 | nsg-corp-management-prd-eus2 | snet-corp-management-prd-eus2 |
+| nsg-corporate-identity-prd-eus2 | snet-identity-prd-eus2 |
 | nsg-corporate-internal-apps-prd-eus2 | snet-corporate-internal-apps-prd-eus2 |
 
 NSGs provide network-layer traffic filtering based on source, destination, protocol, and port.
@@ -229,7 +240,7 @@ The `snet-corporate-internal-apps-prd-eus2` subnet provides a dedicated network 
 | WEB01 | 10.1.3.4 |
 | WEB02 | 10.1.3.5 |
 | Load Balancer Frontend | 10.1.3.10 |
-| Outbound Connectivity | Azure NAT Gateway |
+| Outbound Connectivity | Azure Firewall |
 | Application Protocol | HTTP |
 | Application Port | TCP/80 |
 
@@ -237,14 +248,14 @@ WEB01 and WEB02 run Nginx and remain privately addressed within the Corporate VN
 
 Neither web server requires a direct public IP address.
 
-The Internal Apps subnet uses Azure NAT Gateway for explicit outbound Internet connectivity and an internal Azure Load Balancer for application delivery.
+The Internal Apps subnet uses Azure Firewall for controlled outbound Internet connectivity and an internal Azure Load Balancer for application delivery.
 
 These two services perform different functions:
 
 - Azure Load Balancer distributes internal application traffic to healthy backend servers.
-- Azure NAT Gateway provides outbound Internet connectivity originating from the subnet.
+- Azure Firewall controls outbound Internet connectivity originating from the subnet.
 
-Separating these functions allows the application tier to remain private while still supporting outbound package installation, updates, and other required Internet-bound connections.
+Separating these functions allows the application tier to remain private while still supporting controlled outbound connectivity.
 
 ---
 
@@ -299,7 +310,8 @@ The environment separates infrastructure according to function rather than placi
 
 - **Azure Bastion** - Centralized private administrative connectivity
 - **Hub Management** - Shared management infrastructure
-- **Azure Firewall** - Reserved subnet for future centralized traffic filtering
+- **Azure Firewall** - Centralized outbound traffic filtering and policy enforcement
+- **Azure Firewall Management** - Dedicated Azure Firewall Basic management traffic
 - **Gateway** - Reserved subnet for future VPN or ExpressRoute connectivity
 
 ### Corporate
@@ -333,7 +345,7 @@ Keeping server workloads privately addressed reduces direct Internet exposure an
 
 Default outbound access is disabled on the active private Corporate subnets.
 
-Azure NAT Gateway provides an explicitly configured outbound path and predictable public egress resource for Internet-bound connections originating from those subnets. This keeps outbound connectivity intentional and independent from direct public addressing on individual workloads.
+User Defined Routes direct Internet-bound traffic from the Corporate workload subnets to Azure Firewall in the Hub. Azure Firewall provides a centralized enforcement point where outbound connectivity can be explicitly permitted or denied according to firewall policy while the workloads remain privately addressed.
 
 ## Dedicated Identity Network
 
@@ -361,9 +373,9 @@ The Load Balancer provides a consistent private application endpoint while allow
 
 ## Reserved Network Capacity
 
-Dedicated address space remains reserved for Azure Firewall, gateway connectivity, and Private Endpoints.
+Dedicated address space remains reserved for gateway connectivity and Private Endpoints.
 
-Reserving these network segments allows planned security, hybrid connectivity, and private service-access capabilities to be introduced without redesigning the existing address plan or disrupting currently deployed workloads.
+Reserving these network segments allows planned hybrid connectivity and private service-access capabilities to be introduced without redesigning the existing address plan or disrupting currently deployed workloads.
 
 ---
 
@@ -371,8 +383,6 @@ Reserving these network segments allows planned security, hybrid connectivity, a
 
 Planned network improvements include:
 
-- Azure Firewall deployment within the reserved `AzureFirewallSubnet`
-- User Defined Routes for centralized traffic inspection
 - Expanded network security rules
 - Additional internal application workloads
 - Private Endpoint implementation
@@ -386,10 +396,10 @@ Planned network improvements include:
 
 # Summary
 
-The Azure Enterprise Lab network currently uses a Hub-and-Spoke architecture that separates shared connectivity services from Corporate Identity, Management, and Internal Application workloads.
+The Azure Enterprise Lab network currently uses a Hub-and-Spoke architecture that separates shared connectivity and security services from Corporate Identity, Management, and Internal Application workloads.
 
-Azure Bastion provides private administrative connectivity across VNet peering, Active Directory-integrated DNS provides internal name resolution and domain service discovery, and Azure NAT Gateway provides explicit outbound Internet connectivity for private Corporate workloads.
+Azure Bastion provides private administrative connectivity across VNet peering, Active Directory-integrated DNS provides internal name resolution and domain service discovery, and Azure Firewall provides centralized outbound traffic control for private Corporate workloads through User Defined Routes.
 
 The Internal Apps subnet hosts two Nginx backend servers behind an internal Azure Load Balancer with a static private frontend, TCP/80 health monitoring, and validated backend failover.
 
-The current design demonstrates network segmentation, private workload addressing, centralized administrative access, explicit outbound connectivity, internal application load balancing, backend health monitoring, and reserved capacity for future centralized security and hybrid-connectivity services.
+The current design demonstrates network segmentation, private workload addressing, centralized administrative access, controlled outbound connectivity, centralized firewall policy enforcement, internal application load balancing, backend health monitoring, and reserved capacity for future hybrid-connectivity services.
