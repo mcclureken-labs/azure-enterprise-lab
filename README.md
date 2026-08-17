@@ -34,11 +34,11 @@ The environment is being built incrementally alongside preparation for the Micro
 
 The environment uses a Hub-and-Spoke architecture consisting of a centralized Hub Virtual Network and a Corporate workload Virtual Network.
 
-The Hub provides shared connectivity and administrative infrastructure. Azure Bastion provides private administrative connectivity to server workloads across VNet peering without assigning direct public IP addresses to the virtual machines.
+The Hub provides shared connectivity, security, and administrative infrastructure. Azure Bastion provides private administrative connectivity to server workloads across VNet peering without assigning direct public IP addresses to the virtual machines.
 
 The Corporate VNet separates Identity, Management, and Internal Application workloads into dedicated network segments.
 
-Azure NAT Gateway currently provides explicit outbound Internet connectivity for the active private Corporate workload subnets. NAT Gateway performs Source Network Address Translation (SNAT) using a dedicated static Public IP resource while allowing the server virtual machines to remain privately addressed.
+Azure Firewall provides centralized outbound connectivity for Corporate workloads. A User Defined Route directs default outbound traffic from the Corporate workload subnets to the Azure Firewall private IP at 10.0.0.4, allowing outbound access to be centrally inspected and controlled through explicit firewall policy.
 
 Active Directory Domain Services and Active Directory-integrated DNS are hosted on DC01. The Corporate VNet uses DC01 as its custom DNS server, allowing domain-connected systems such as MGMT01 to locate Active Directory services and resolve the internal namespace.
 
@@ -58,8 +58,9 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Subnet-level Network Security Groups
 - Azure Bastion for private administrative access
 - No direct public IP addresses assigned to server virtual machines
-- Azure NAT Gateway for explicit outbound Internet connectivity
-- Dedicated static Public IP resource for NAT Gateway egress
+- Azure Firewall for centralized outbound connectivity
+- User Defined Routes directing Corporate outbound traffic through Azure Firewall
+- Explicit firewall policy controlling permitted outbound traffic
 - Active Directory Domain Services and DNS hosted on DC01
 - Corporate VNet configured to use Active Directory DNS
 - Domain-joined MGMT01 administrative server
@@ -69,7 +70,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Redundant WEB01 and WEB02 Nginx backends
 - TCP/80 backend health monitoring
 - Validated application failover between backend servers
-- Reserved network segments for future Azure Firewall, gateway, and Private Endpoint services
+- Reserved network segments for future gateway and Private Endpoint services
 
 ---
 
@@ -86,7 +87,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Static private IP: 10.1.0.4
 - Dedicated Identity subnet
 - No direct public IP
-- Explicit outbound connectivity through Azure NAT Gateway
+- Outbound connectivity routed through Azure Firewall
 
 ### MGMT01
 
@@ -102,7 +103,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Active Directory, DNS, and Group Policy administrative tooling
 - Hosts the initial ITShare file resource
 - No direct public IP
-- Explicit outbound connectivity through Azure NAT Gateway
+- Outbound connectivity routed through Azure Firewall
 
 ### WEB01
 
@@ -114,7 +115,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Dedicated Internal Apps subnet
 - Internal Load Balancer backend
 - No direct public IP
-- Explicit outbound connectivity through Azure NAT Gateway
+- Outbound connectivity routed through Azure Firewall
 
 ### WEB02
 
@@ -126,7 +127,7 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Dedicated Internal Apps subnet
 - Internal Load Balancer backend
 - No direct public IP
-- Explicit outbound connectivity through Azure NAT Gateway
+- Outbound connectivity routed through Azure Firewall
 
 ---
 
@@ -187,9 +188,10 @@ The server baseline is maintained separately from the Default Domain Policy to p
 - [x] VNet peering
 - [x] Network Security Groups
 - [x] Private workload subnet configuration
-- [x] Azure NAT Gateway
-- [x] Dedicated static Public IP for NAT Gateway
-- [x] Explicit outbound connectivity
+- [x] Azure Firewall
+- [x] User Defined Routes
+- [x] Centralized outbound connectivity
+- [x] Firewall policy configuration
 - [x] Outbound connectivity validation
 
 ### Phase 2 - Secure Administration
@@ -240,15 +242,13 @@ The server baseline is maintained separately from the Default Domain Policy to p
 - [x] Backend pool configuration
 - [x] TCP/80 health probe
 - [x] TCP/80 load-balancing rule
-- [x] NAT Gateway association
+- [x] Azure Firewall egress routing
 - [x] Internal application connectivity validation
 - [x] Backend failure simulation
 - [x] Application failover validation
 
 ### Future Phases
 
-- [ ] Azure Firewall
-- [ ] User Defined Routes
 - [ ] Microsoft Defender for Cloud
 - [ ] Azure Policy
 - [ ] Azure Key Vault
@@ -271,8 +271,8 @@ The project documents troubleshooting and validation performed throughout implem
 
 Examples include:
 
-- Diagnosed private-subnet outbound connectivity and implemented Azure NAT Gateway as the current explicit egress solution
-- Validated NAT Gateway SNAT and outbound connectivity while maintaining private workload addressing
+- Implemented centralized Corporate outbound routing through Azure Firewall using User Defined Routes
+- Validated permitted outbound connectivity through explicit Azure Firewall rules and confirmed unmatched traffic is denied by default
 - Configured and validated Active Directory DNS dependencies and domain integration
 - Identified and remediated overly broad inherited NTFS permissions
 - Validated internal application availability through backend failure testing
@@ -306,7 +306,8 @@ This project currently demonstrates hands-on experience with:
 - Azure Virtual Networks, subnetting, VNet peering, and Hub-and-Spoke architecture
 - Network Security Groups and private workload networking
 - Azure Bastion
-- Azure NAT Gateway and SNAT
+- Azure Firewall and centralized outbound traffic control
+- User Defined Routes and custom routing
 - Azure Load Balancer, health probing, and failover validation
 - Windows Server 2025 administration
 - Active Directory Domain Services and Active Directory-integrated DNS
