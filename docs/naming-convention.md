@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Naming Convention
 
-**Version:** 1.3  
-**Last Updated:** August 16, 2026  
+**Version:** 1.4  
+**Last Updated:** August 17, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -55,7 +55,9 @@ The goal is consistent meaning rather than forcing every object into an identica
 | Virtual Machine | vm |
 | Network Interface | nic |
 | Azure Bastion | bas |
-| NAT Gateway | nat |
+| Azure Firewall | fw |
+| Firewall Policy | fwpol |
+| Route Table | rt |
 | Public IP | pip |
 | Load Balancer | lb |
 
@@ -77,10 +79,10 @@ A resource's scope identifies its architectural purpose or the workload it serve
 For example:
 
 ```text
-nat-corp-prd-eus2
+fw-hub-prd-eus2
 ```
 
-The `corp` designation identifies the Corporate workloads served by the resource even though the NAT Gateway is maintained within the shared connectivity Resource Group.
+The `hub` designation identifies Azure Firewall as shared network infrastructure deployed within the Hub Virtual Network.
 
 ---
 
@@ -170,6 +172,7 @@ The naming standard prioritizes clear meaning and consistency over requiring eve
 Azure-reserved subnet names retain Microsoft's required naming conventions where applicable:
 
 - `AzureFirewallSubnet`
+- `AzureFirewallManagementSubnet`
 - `AzureBastionSubnet`
 - `GatewaySubnet`
 
@@ -191,6 +194,7 @@ Current examples:
 
 - `nsg-hub-management-prd-eus2`
 - `nsg-corp-management-prd-eus2`
+- `nsg-corporate-identity-prd-eus2`
 - `nsg-corporate-internal-apps-prd-eus2`
 
 The naming relationship between an NSG and its associated subnet makes the intended network-security association recognizable from the resource names.
@@ -264,21 +268,57 @@ The `hub` designation reflects Bastion's role as shared infrastructure within th
 
 ---
 
-## NAT Gateway
+## Azure Firewall
 
-NAT Gateway uses:
+Azure Firewall uses:
 
 ```text
-nat-<served-scope>-<environment>-<region>
+fw-<scope>-<environment>-<region>
 ```
 
 Current resource:
 
 ```text
-nat-corp-prd-eus2
+fw-hub-prd-eus2
 ```
 
-The `corp` designation identifies the workload scope served by the NAT Gateway.
+The `hub` designation reflects Azure Firewall's role as centralized network-security infrastructure within the Hub Virtual Network.
+
+---
+
+## Firewall Policy
+
+Azure Firewall Policy resources use:
+
+```text
+fwpol-<scope>-<environment>-<region>
+```
+
+Current resource:
+
+```text
+fwpol-hub-prd-eus2
+```
+
+The Firewall Policy name maintains a clear relationship with the Azure Firewall resource it governs.
+
+---
+
+## Route Tables
+
+Route Tables use:
+
+```text
+rt-<scope>-<function>-<environment>-<region>
+```
+
+Current resource:
+
+```text
+rt-corporate-egress-prd-eus2
+```
+
+The resource name identifies both the workload scope and routing purpose of the Route Table.
 
 ---
 
@@ -293,7 +333,8 @@ pip-<associated-service>-<scope>-<environment>-<region>
 Current Public IP resources include:
 
 - `pip-bastion-hub-prd-eus2`
-- `pip-nat-corp-prd-eus2`
+- `pip-fw-hub-prd-eus2`
+- `pip-fw-mgmt-hub-prd-eus2`
 
 The resource name identifies the service with which the Public IP resource is associated.
 
@@ -477,6 +518,7 @@ Examples include:
 
 - `AzureBastionSubnet`
 - `AzureFirewallSubnet`
+- `AzureFirewallManagementSubnet`
 - `GatewaySubnet`
 
 ### Operating System Names Remain Concise
@@ -517,7 +559,7 @@ Sequential numbering and functional naming allow the environment to expand while
 
 # Future Naming Extensions
 
-The naming convention will be extended as additional services such as Azure Firewall, Route Tables, Private Endpoints, Key Vault, centralized monitoring, and Infrastructure as Code resources are implemented.
+The naming convention will be extended as additional services such as Private Endpoints, Key Vault, centralized monitoring, and Infrastructure as Code resources are implemented.
 
 New naming patterns will be documented when those resources are deployed rather than documenting hypothetical resource names as current infrastructure.
 
