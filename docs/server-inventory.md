@@ -1,7 +1,7 @@
 # Server Inventory
 
-**Version:** 1.3  
-**Last Updated:** August 16, 2026  
+**Version:** 1.4  
+**Last Updated:** August 17, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -60,7 +60,8 @@ Current services include:
 - Private IP: 10.1.0.4
 - IP Allocation: Static
 - No direct public IP assigned
-- Outbound Connectivity: Azure NAT Gateway
+- Network Security Group: `nsg-corporate-identity-prd-eus2`
+- Outbound Connectivity: Azure Firewall
 
 DC01 uses static private addressing because domain-connected systems depend on a consistent endpoint for Active Directory-integrated DNS and directory services.
 
@@ -121,7 +122,7 @@ Detailed authorization design is maintained in the [Active Directory Design](act
 - IP Allocation: Dynamic
 - No direct public IP assigned
 - Network Security Group: `nsg-corp-management-prd-eus2`
-- Outbound Connectivity: Azure NAT Gateway
+- Outbound Connectivity: Azure Firewall
 
 ---
 
@@ -151,7 +152,7 @@ Current functions include:
 - IP Allocation: Dynamic
 - No direct public IP assigned
 - Network Security Group: `nsg-corporate-internal-apps-prd-eus2`
-- Outbound Connectivity: Azure NAT Gateway
+- Outbound Connectivity: Azure Firewall
 
 ### Load Balancing
 
@@ -187,7 +188,7 @@ Current functions include:
 - IP Allocation: Dynamic
 - No direct public IP assigned
 - Network Security Group: `nsg-corporate-internal-apps-prd-eus2`
-- Outbound Connectivity: Azure NAT Gateway
+- Outbound Connectivity: Azure Firewall
 
 ### Load Balancing
 
