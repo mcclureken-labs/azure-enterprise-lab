@@ -1,7 +1,7 @@
 # Server Inventory
 
-**Version:** 1.4  
-**Last Updated:** August 17, 2026  
+**Version:** 1.5  
+**Last Updated:** August 20, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -62,6 +62,7 @@ Current services include:
 - No direct public IP assigned
 - Network Security Group: `nsg-corporate-identity-prd-eus2`
 - Outbound Connectivity: Azure Firewall
+- Monitoring: Azure Monitor Agent - Windows Security Events
 
 DC01 uses static private addressing because domain-connected systems depend on a consistent endpoint for Active Directory-integrated DNS and directory services.
 
@@ -123,6 +124,7 @@ Detailed authorization design is maintained in the [Active Directory Design](act
 - No direct public IP assigned
 - Network Security Group: `nsg-corp-management-prd-eus2`
 - Outbound Connectivity: Azure Firewall
+- Monitoring: Azure Monitor Agent - Windows Security Events
 
 ---
 
@@ -153,6 +155,7 @@ Current functions include:
 - No direct public IP assigned
 - Network Security Group: `nsg-corporate-internal-apps-prd-eus2`
 - Outbound Connectivity: Azure Firewall
+- Monitoring: Azure Monitor Agent - Linux Syslog
 
 ### Load Balancing
 
@@ -189,6 +192,7 @@ Current functions include:
 - No direct public IP assigned
 - Network Security Group: `nsg-corporate-internal-apps-prd-eus2`
 - Outbound Connectivity: Azure Firewall
+- Monitoring: Azure Monitor Agent - Linux Syslog
 
 ### Load Balancing
 
@@ -233,6 +237,8 @@ WEB01 and WEB02 form the internal Nginx application tier and participate in the 
 
 All four server workloads remain privately addressed within their respective Corporate network segments.
 
+All four servers are monitored using Azure Monitor Agent, with Windows Security Events collected from the Windows infrastructure and Syslog collected from the Linux application tier.
+
 ---
 
 ## Future Improvements
@@ -244,8 +250,6 @@ Planned server infrastructure improvements include:
 - Expanded remote administration capabilities
 - Additional Group Policy configuration
 - Additional file-services scenarios
-- Windows Server auditing and logging
-- Centralized monitoring
 - Additional application availability scenarios
 - PowerShell administration and automation
 - Infrastructure as Code deployment
