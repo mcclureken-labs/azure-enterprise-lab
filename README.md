@@ -46,6 +46,8 @@ MGMT01 provides a dedicated domain-joined administrative platform for Active Dir
 
 The Internal Apps subnet hosts two Ubuntu Nginx web servers, WEB01 and WEB02, behind an internal Azure Load Balancer. The Load Balancer provides a static private application frontend at 10.1.3.10, distributes TCP/80 traffic across healthy backend systems, and uses health probing to detect backend availability.
 
+Azure Monitor provides centralized monitoring across the server environment. Azure Monitor Agent is deployed to all four virtual machines, with a Data Collection Rule collecting Windows Security Events from the Windows servers and Syslog from the Linux application servers into a Log Analytics workspace. Monitoring telemetry is sent through Azure Firewall over HTTPS/443 in accordance with the centralized outbound connectivity design.
+
 ![Azure Enterprise Lab Topology](images/azure-enterprise-lab-topology.png)
 
 The editable source for the architecture diagram is maintained in [diagrams/azure-enterprise-lab-topology.drawio](diagrams/azure-enterprise-lab-topology.drawio).
@@ -70,6 +72,9 @@ The editable source for the architecture diagram is maintained in [diagrams/azur
 - Redundant WEB01 and WEB02 Nginx backends
 - TCP/80 backend health monitoring
 - Validated application failover between backend servers
+- Azure Monitor Agent deployed across Windows and Linux workloads
+- Data Collection Rule collecting Windows Security Events and Linux Syslog
+- Centralized telemetry ingestion into Log Analytics through Azure Firewall
 - Reserved network segments for future gateway and Private Endpoint services
 
 ---
@@ -247,12 +252,23 @@ The server baseline is maintained separately from the Default Domain Policy to p
 - [x] Backend failure simulation
 - [x] Application failover validation
 
+### Phase 5 - Monitoring and Centralized Logging
+
+- [x] Log Analytics Workspace
+- [x] Azure Monitor Agent deployment
+- [x] Data Collection Rule
+- [x] Windows Security Event collection
+- [x] Linux Syslog collection
+- [x] Azure Firewall monitoring egress configuration
+- [x] VM heartbeat validation
+- [x] Windows and Linux telemetry validation
+- [x] KQL-based monitoring and log-ingestion validation
+
 ### Future Phases
 
 - [ ] Microsoft Defender for Cloud
 - [ ] Azure Policy
 - [ ] Azure Key Vault
-- [ ] Azure Monitor and centralized logging
 - [ ] Microsoft Entra ID integration
 - [ ] Private Endpoints
 - [ ] Additional identity security controls
@@ -276,6 +292,7 @@ Examples include:
 - Configured and validated Active Directory DNS dependencies and domain integration
 - Identified and remediated overly broad inherited NTFS permissions
 - Validated internal application availability through backend failure testing
+- Identified and remediated Azure Monitor Agent telemetry failure caused by restrictive Azure Firewall egress policy, then validated Windows and Linux log ingestion
 
 Detailed investigation, remediation, and lessons learned are maintained in the [Troubleshooting](docs/troubleshooting.md) documentation.
 
@@ -316,6 +333,8 @@ This project currently demonstrates hands-on experience with:
 - Group Policy and Windows security configuration
 - Windows NTFS permissions and access-control troubleshooting
 - Linux server administration and Nginx
+- Azure Monitor, Log Analytics, and Azure Monitor Agent
+- Data Collection Rules, Windows/Linux telemetry collection, and KQL-based validation
 - Network and infrastructure troubleshooting
 - Enterprise naming conventions and technical architecture documentation
 
