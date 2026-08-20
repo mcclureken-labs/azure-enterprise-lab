@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Troubleshooting
 
-**Version:** 1.4  
-**Last Updated:** August 17, 2026  
+**Version:** 1.5  
+**Last Updated:** August 20, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -325,7 +325,7 @@ The resulting NTFS ACL retained:
 | Principal | Permission |
 | --- | --- |
 | `DL-ITShare-RW` | Modify |
-| `SYSTEM` | Full Control |
+| SYSTEM | Full Control |
 | Local Administrators | Full Control |
 
 This preserved required system and administrative access while aligning normal user authorization with the intended Active Directory group model.
@@ -436,6 +436,101 @@ Intentionally shutting down WEB01 provided a controlled failure condition and de
 
 ---
 
+# Issue #4 - Azure Monitor Telemetry Through Centralized Firewall Egress
+
+## Symptoms
+
+Azure Monitor Agent was deployed to the four server virtual machines as part of the centralized monitoring implementation.
+
+The agent extensions provisioned successfully, and the Data Collection Rule was associated with the monitored resources. End-to-end telemetry ingestion into the Log Analytics workspace still needed to be validated.
+
+Because the Corporate workload subnets route Internet-bound traffic through Azure Firewall, successful agent deployment alone did not confirm that the agents could communicate with the required Azure Monitor services.
+
+---
+
+## Investigation
+
+The monitoring path was evaluated from the virtual machines through the existing centralized outbound architecture.
+
+Validation included:
+
+- Confirming Azure Monitor Agent was successfully provisioned on DC01, MGMT01, WEB01, and WEB02
+- Confirming the Data Collection Rule association existed
+- Confirming the Log Analytics workspace configuration
+- Reviewing the Corporate workload subnet routing path
+- Confirming the `0.0.0.0/0` User Defined Route directed outbound traffic to Azure Firewall
+- Reviewing Azure Firewall policy for the HTTPS destinations required by the monitoring implementation
+
+The investigation confirmed that monitoring traffic from the Corporate workloads depended on the same centralized Azure Firewall egress architecture used for other outbound connectivity.
+
+---
+
+## Connectivity Requirement
+
+The monitoring implementation required outbound HTTPS connectivity from the Azure Monitor Agents to the required Azure Monitor service endpoints.
+
+Because unmatched outbound traffic is denied by Azure Firewall policy, the monitoring path required an explicit firewall rule permitting the necessary Azure Monitor destinations over TCP port 443.
+
+This maintained the existing default-deny outbound model rather than broadly permitting Internet access from the monitored server subnets.
+
+---
+
+## Remediation
+
+A dedicated Azure Firewall application rule was configured to permit the required Azure Monitor HTTPS destinations.
+
+The rule was scoped to:
+
+- Corporate workload source address space
+- HTTPS
+- TCP port 443
+- Required Azure Monitor service destinations
+
+This allowed Azure Monitor Agent telemetry to traverse the centralized firewall egress path without introducing unrestricted outbound Internet access for the server workloads.
+
+---
+
+## Validation
+
+Telemetry ingestion was validated from the Log Analytics workspace using Kusto Query Language (KQL).
+
+Validation confirmed:
+
+- Heartbeat data from DC01
+- Heartbeat data from MGMT01
+- Heartbeat data from WEB01
+- Heartbeat data from WEB02
+- Windows Security Event collection from DC01 and MGMT01
+- Linux Syslog collection from WEB01 and WEB02
+
+The results confirmed that Azure Monitor Agent was functioning across both Windows and Linux workloads and that telemetry could successfully traverse the centralized Azure Firewall egress architecture and reach the Log Analytics workspace.
+
+Final telemetry validation evidence is maintained in the [Security Design](security-design.md) documentation.
+
+---
+
+## Lessons Learned
+
+### Successful Agent Deployment Does Not Prove Telemetry Ingestion
+
+A successfully provisioned Azure Monitor Agent extension confirms that the extension was deployed, but it does not by itself prove that telemetry is successfully reaching the configured destination.
+
+End-to-end validation at the Log Analytics workspace was required to confirm that the monitoring path was functioning.
+
+### Centralized Egress Affects Platform Service Connectivity
+
+Routing workload egress through Azure Firewall means Azure-hosted workloads still require explicit access to external service endpoints used by platform integrations.
+
+The monitoring implementation reinforced the need to evaluate service dependencies when using a default-deny outbound architecture.
+
+### Validate Monitoring at the Destination
+
+The final validation was performed against data received by the Log Analytics workspace rather than relying solely on VM extension status or configuration state.
+
+Querying Heartbeat, Event, and Syslog data with KQL confirmed that the complete telemetry path was operational across both Windows and Linux workloads.
+
+---
+
 # Troubleshooting Methodology
 
 The issues encountered during development of the lab reinforced a repeatable troubleshooting process.
@@ -451,14 +546,14 @@ When investigating infrastructure problems:
 7. Apply the smallest appropriate remediation.
 8. Re-test the original condition and validate that the resulting architecture behaves as intended.
 
-This approach helps isolate failures without introducing unrelated configuration changes and provides a repeatable method for troubleshooting cloud, network, identity, operating-system, and application infrastructure.
+This approach helps isolate failures without introducing unrelated configuration changes and provides a repeatable method for troubleshooting cloud, network, identity, operating-system, application, and monitoring infrastructure.
 
 ---
 
 # Summary
 
-Troubleshooting within the Azure Enterprise Lab has included outbound network connectivity and firewall policy validation, Windows resource authorization, and internal application availability.
+Troubleshooting within the Azure Enterprise Lab has included outbound network connectivity and firewall policy validation, Windows resource authorization, internal application availability, and centralized monitoring connectivity.
 
-These scenarios required troubleshooting across different infrastructure layers, including Azure networking, Windows permissions, Active Directory authorization, and application delivery.
+These scenarios required troubleshooting across different infrastructure layers, including Azure networking, firewall policy, Windows permissions, Active Directory authorization, application delivery, and Azure Monitor telemetry collection.
 
 The troubleshooting process emphasizes isolating technical layers, validating assumptions, identifying root causes, applying scoped remediation, and testing the resulting architecture rather than simply confirming that the original symptom disappeared.
