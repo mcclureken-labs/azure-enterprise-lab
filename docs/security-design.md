@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Security Design
 
-**Version:** 1.5  
-**Last Updated:** August 17, 2026  
+**Version:** 1.6  
+**Last Updated:** August 20, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -25,6 +25,7 @@ Security controls are implemented across multiple layers of the environment, inc
 - Windows NTFS permissions
 - Internal application delivery
 - Explicit outbound Internet connectivity
+- Centralized Windows and Linux telemetry collection
 
 The current architecture is shown below.
 
@@ -177,6 +178,40 @@ Azure Firewall operates alongside, rather than replacing, other security control
 - Application security controls
 
 This layered approach allows subnet-level controls and centralized outbound policy enforcement to serve different security functions within the environment.
+
+---
+
+# Centralized Monitoring and Logging
+
+Azure Monitor and Log Analytics provide centralized telemetry collection across the Windows and Linux server environment.
+
+Azure Monitor Agent is deployed to DC01, MGMT01, WEB01, and WEB02. The `dcr-corporate-servers-prd-eus2` Data Collection Rule defines the telemetry collected from these systems:
+
+- Windows Security Events from DC01 and MGMT01
+- Linux Syslog from WEB01 and WEB02
+- Heartbeat data from all four monitored virtual machines
+
+Collected telemetry is sent to the `law-management-prd-eus2` Log Analytics workspace. Because the Corporate workload subnets use explicit outbound routing, required Azure Monitor Agent communication traverses Azure Firewall over HTTPS/443.
+
+Telemetry ingestion was validated in Log Analytics using KQL queries against Heartbeat, Event, and Syslog data.
+
+### VM Heartbeat Validation
+
+The Heartbeat table confirmed active Azure Monitor Agent communication from all four monitored virtual machines.
+
+![Azure Monitor Centralized Heartbeat Validation](../images/azure-monitor-centralized-heartbeat-validation.png)
+
+### Windows Security Event Validation
+
+The Event table confirmed Windows Security Event collection from DC01 and MGMT01.
+
+![Azure Monitor Windows Event Log Validation](../images/azure-monitor-windows-event-log-validation.png)
+
+### Linux Syslog Validation
+
+The Syslog table confirmed Linux Syslog collection from WEB01 and WEB02.
+
+![Azure Monitor Linux Syslog Validation](../images/azure-monitor-linux-syslog-validation.png)
 
 ---
 
@@ -339,6 +374,7 @@ Major validation performed within the environment includes:
 - **Resource authorization:** Validated Active Directory security-group nesting and NTFS access through the intended Domain Local security group.
 - **Outbound connectivity:** Validated centralized outbound routing through Azure Firewall, including successful permitted Azure KMS traffic over TCP port 1688 and denial of unmatched outbound web traffic.
 - **Internal application delivery:** Validated private Load Balancer frontend connectivity, backend health monitoring, traffic delivery to Nginx systems, and continued application availability following intentional backend failure.
+- **Monitoring and logging:** Validated Azure Monitor Agent communication and centralized telemetry ingestion using KQL, including Heartbeat data from all four VMs, Windows Security Events from DC01 and MGMT01, and Linux Syslog from WEB01 and WEB02.
 
 Detailed troubleshooting, remediation, and validation scenarios are maintained in the [Troubleshooting](troubleshooting.md) documentation.
 
@@ -353,7 +389,6 @@ Planned security improvements include:
 - Azure Key Vault
 - Just-In-Time VM Access
 - Network monitoring and diagnostics
-- Centralized logging and monitoring
 - Additional identity security controls
 - Additional Group Policy server-hardening settings
 - More granular administrative privilege delegation
@@ -370,8 +405,8 @@ These services and controls are planned enhancements and should not be interpret
 
 # Summary
 
-The Azure Enterprise Lab applies layered security controls across networking, administrative access, identity, authorization, Windows policy, and internal application delivery.
+The Azure Enterprise Lab applies layered security controls across networking, administrative access, identity, authorization, Windows policy, internal application delivery, and centralized telemetry collection.
 
-The current design emphasizes private workload addressing, functional network segmentation, centralized administrative access, controlled outbound connectivity through Azure Firewall, centralized identity and policy management, and group-based resource authorization. Implemented controls are functionally validated rather than treated as effective based solely on configuration state.
+The current design emphasizes private workload addressing, functional network segmentation, centralized administrative access, controlled outbound connectivity through Azure Firewall, centralized identity and policy management, group-based resource authorization, and centralized Windows and Linux telemetry collection. Implemented controls are functionally validated rather than treated as effective based solely on configuration state.
 
-The environment provides a foundation for introducing additional controls such as Microsoft Defender for Cloud, Azure Policy, Key Vault, centralized monitoring, expanded Windows hardening, and additional identity-security capabilities as the project develops.
+The environment provides a foundation for introducing additional controls such as Microsoft Defender for Cloud, Azure Policy, Key Vault, expanded Windows hardening, and additional identity-security capabilities as the project develops.
