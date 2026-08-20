@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Naming Convention
 
-**Version:** 1.4  
-**Last Updated:** August 17, 2026  
+**Version:** 1.5  
+**Last Updated:** August 20, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -60,6 +60,8 @@ The goal is consistent meaning rather than forcing every object into an identica
 | Route Table | rt |
 | Public IP | pip |
 | Load Balancer | lb |
+| Log Analytics Workspace | law |
+| Data Collection Rule | dcr |
 
 Additional prefixes will be introduced as new Azure services are implemented.
 
@@ -375,6 +377,42 @@ Child-object names should describe their function without unnecessarily repeatin
 
 ---
 
+## Log Analytics Workspace
+
+Log Analytics workspaces use:
+
+```text
+law-<function>-<environment>-<region>
+```
+
+Current resource:
+
+```text
+law-management-prd-eus2
+```
+
+The `management` designation reflects the workspace's role as the centralized telemetry destination for monitored infrastructure within the lab.
+
+---
+
+## Data Collection Rules
+
+Data Collection Rules use:
+
+```text
+dcr-<scope-or-function>-<environment>-<region>
+```
+
+Current resource:
+
+```text
+dcr-corporate-servers-prd-eus2
+```
+
+The name identifies the rule as the telemetry collection configuration applied to Corporate server workloads.
+
+---
+
 # Server Hostnames
 
 Azure VM resource names and operating system hostnames serve different purposes.
@@ -559,7 +597,7 @@ Sequential numbering and functional naming allow the environment to expand while
 
 # Future Naming Extensions
 
-The naming convention will be extended as additional services such as Private Endpoints, Key Vault, centralized monitoring, and Infrastructure as Code resources are implemented.
+The naming convention will be extended as additional services such as Private Endpoints, Key Vault, and Infrastructure as Code resources are implemented.
 
 New naming patterns will be documented when those resources are deployed rather than documenting hypothetical resource names as current infrastructure.
 
