@@ -1,7 +1,7 @@
 # Enterprise Azure Lab - Network Design
 
-**Version:** 1.4  
-**Last Updated:** August 17, 2026  
+**Version:** 1.5  
+**Last Updated:** August 20, 2026  
 **Author:** Kendrick McClure
 
 ---
@@ -19,6 +19,7 @@ The current network design incorporates:
 - Azure Bastion for private administrative connectivity
 - Azure Firewall for centralized outbound traffic control
 - User Defined Routes for centralized outbound routing
+- Azure Monitor telemetry routed through centralized firewall egress
 - Active Directory-integrated DNS
 - Subnet-level Network Security Groups
 - Dedicated Identity and Management networks
@@ -176,6 +177,16 @@ Testing confirmed that explicitly permitted Azure KMS activation traffic over TC
 Unmatched outbound web traffic was also tested and denied by Azure Firewall because no firewall rule matched the request.
 
 This validated both permitted outbound connectivity and default-deny behavior for traffic not explicitly allowed by firewall policy.
+
+Azure Monitor connectivity was subsequently validated after adding narrowly scoped HTTPS/443 firewall policy for the required monitoring endpoints, with successful telemetry ingestion confirmed from both Windows and Linux workloads.
+
+## Azure Monitor Egress
+
+Azure Monitor Agent telemetry from the Corporate server workloads uses the existing centralized outbound path through Azure Firewall.
+
+Firewall policy permits the required Azure Monitor communication over HTTPS/443 while maintaining default-deny behavior for outbound traffic that is not explicitly permitted.
+
+This allows DC01, MGMT01, WEB01, and WEB02 to send monitoring telemetry to Azure Monitor and the configured Log Analytics workspace without requiring direct public IP addresses or unrestricted outbound Internet access.
 
 ---
 
@@ -387,7 +398,6 @@ Planned network improvements include:
 - Additional internal application workloads
 - Private Endpoint implementation
 - VPN or other hybrid connectivity using the reserved `GatewaySubnet`
-- Centralized network monitoring and logging
 - Network security integration with Microsoft Defender for Cloud
 - Additional load-balancing and application availability scenarios
 - Infrastructure automation using PowerShell, Bicep, and Terraform
@@ -398,7 +408,7 @@ Planned network improvements include:
 
 The Azure Enterprise Lab network currently uses a Hub-and-Spoke architecture that separates shared connectivity and security services from Corporate Identity, Management, and Internal Application workloads.
 
-Azure Bastion provides private administrative connectivity across VNet peering, Active Directory-integrated DNS provides internal name resolution and domain service discovery, and Azure Firewall provides centralized outbound traffic control for private Corporate workloads through User Defined Routes.
+Azure Bastion provides private administrative connectivity across VNet peering, Active Directory-integrated DNS provides internal name resolution and domain service discovery, and Azure Firewall provides centralized outbound traffic control for private Corporate workloads through User Defined Routes. Azure Monitor Agent telemetry from Corporate server workloads also traverses the centralized Azure Firewall egress path over HTTPS/443.
 
 The Internal Apps subnet hosts two Nginx backend servers behind an internal Azure Load Balancer with a static private frontend, TCP/80 health monitoring, and validated backend failover.
 
